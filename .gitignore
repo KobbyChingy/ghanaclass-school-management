@@ -1,0 +1,76 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+#.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+/coverage/
+
+# Local temp folder used by scripts (avoid committing logs/artifacts)
+/.tmp/
+
+# Windows MSIX signing certs (local only)
+/windows/msix/
+
+# Local env files (keep secrets out of git)
+.env
+scripts/release.env
+backend/.env
+backend/.env.*
+
+# Installer outputs
+/dist/
+
+# Local analysis / build log scratch files (root-level *.txt)
+/analyze_*.txt
+/analysis_*.txt
+/analyzer_*.txt
+/build_error_*.txt
+/build_log*.txt
+/build_logs*.txt
+/build_output*.txt
+/build_run_*.txt
+/_analyze_tmp.txt
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# Android signing files (local only)
+/android/key.properties
+*.jks
+*.keystore

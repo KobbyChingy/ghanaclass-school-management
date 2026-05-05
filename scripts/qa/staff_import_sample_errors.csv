@@ -1,0 +1,4 @@
+Portal Email,Password,First Name,Last Name,Phone Number,Portal Role,Staff ID,Gender,DOB,Hire Date,Position,Department,Base Salary,Is Active,Address,Emergency Contact
+bad.email@demo.school,,Ama,Owusu,0551111111,Teacher,STAFF-DUP-001,Female,1995-02-10,2024-09-01,Teacher,Maths,1200,TRUE,Accra,+233550000010
+dup@demo.school,P@ssw0rd3,Kofi,Asare,0552222222,Teacher,STAFF-DUP-001,Male,1991-07-22,2024-09-01,Teacher,English,not-a-number,TRUE,Takoradi,+233550000011
+dup@demo.school,P@ssw0rd4,Yaa,Sarpong,,Teacher,,Female,1993-03-14,2024-09-01,Teacher,History,1300,TRUE,Ho,+233550000012

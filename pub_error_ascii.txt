@@ -1,0 +1,43 @@
+Resolving dependencies...
+c:/Users/ENOCH/Desktop
+/flutter/bin/flutter.b
+at : Because ghanaclas
+s_school_management 
+depends on 
+lucide_icons ^0.306.0 
+which doesn't match 
+any versions, version 
+solving failed.
+At line:1 char:1
++ c:/Users/ENOCH/Deskt
+op/flutter/bin/flutter
+.bat pub get > 
+pub_error.tx ...
++ ~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
+~~~~~
+    + CategoryInfo    
+          : NotSpeci  
+  fied: (Because gh   
+ anacl...solving f    
+ailed.:String) []    
+, RemoteException
+    + FullyQualifiedE 
+   rrorId : NativeCo  
+  mmandError
+ 
+
+
+You can try the 
+following suggestion 
+to make the pubspec 
+resolve:
+* Consider 
+downgrading your 
+constraint on 
+lucide_icons: flutter 
+pub add 
+lucide_icons:^0.257.0
+Failed to update 
+packages.

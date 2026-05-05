@@ -1,0 +1,45 @@
+Resolving dependencies...
+Downloading packages...
+Got dependencies.
+[!] Flutter (Channel stable, 3.38.7, on Microsoft Windows [Version 10.0.26100.7623], locale en-GB) [553ms]
+    • Flutter version 3.38.7 on channel stable at c:\Users\ENOCH\Desktop\flutter
+    ! The flutter binary is not on your path. Consider adding c:\Users\ENOCH\Desktop\flutter\bin to your path.
+    ! The dart binary is not on your path. Consider adding c:\Users\ENOCH\Desktop\flutter\bin to your path.
+    • Upstream repository https://github.com/flutter/flutter.git
+    • Framework revision 3b62efc2a3 (2 weeks ago), 2026-01-13 13:47:42 -0800
+    • Engine revision 78fc3012e4
+    • Dart version 3.10.7
+    • DevTools version 2.51.1
+    • Feature flags: enable-web, enable-linux-desktop, enable-macos-desktop, enable-windows-desktop, enable-android, enable-ios, cli-animations, enable-native-assets, omit-legacy-version-file, enable-lldb-debugging
+    • If those were intentional, you can disregard the above warnings; however it is recommended to use "git" directly to perform update checks and upgrades.
+
+[√] Windows Version (11 Home 64-bit, 24H2, 2009) [2.6s]
+
+[!] Android toolchain - develop for Android devices (Android SDK version 32.1.0-rc1) [1,440ms]
+    • Android SDK at C:\Users\ENOCH\AppData\Local\Android\sdk
+    • Emulator version 31.2.9.0 (build_id 8316981) (CL:N/A)
+    X cmdline-tools component is missing.
+      Try installing or updating Android Studio.
+      Alternatively, download the tools from https://developer.android.com/studio#command-line-tools-only and make sure to set the ANDROID_HOME environment variable.
+      See https://developer.android.com/studio/command-line for more details.
+    X Android license status unknown.
+      Run `flutter doctor --android-licenses` to accept the SDK licenses.
+      See https://flutter.dev/to/windows-android-setup for more details.
+
+[√] Chrome - develop for the web [216ms]
+    • Chrome at C:\Program Files\Google\Chrome\Application\chrome.exe
+
+[√] Visual Studio - develop Windows apps (Visual Studio Build Tools 2019 16.11.52) [214ms]
+    • Visual Studio at C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools
+    • Visual Studio Build Tools 2019 version 16.11.36602.28
+    • Windows 10 SDK version 10.0.19041.0
+
+[√] Connected device (3 available) [308ms]
+    • Windows (desktop) • windows • windows-x64    • Microsoft Windows [Version 10.0.26100.7623]
+    • Chrome (web)      • chrome  • web-javascript • Google Chrome 144.0.7559.61
+    • Edge (web)        • edge    • web-javascript • Microsoft Edge 144.0.3719.92
+
+[√] Network resources [1,223ms]
+    • All expected network resources are available.
+
+! Doctor found issues in 2 categories.

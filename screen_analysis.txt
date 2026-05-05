@@ -1,0 +1,9 @@
+﻿Analyzing assessment_screen.dart...                             
+
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\assessments\assessment_screen.dart:66:46 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\assessments\assessment_screen.dart:68:65 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\assessments\assessment_screen.dart:144:79 - deprecated_member_use
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\features\assessments\assessment_screen.dart:184:17 - deprecated_member_use
+  error - Undefined name 'currentUserProvider' - lib\features\assessments\assessment_screen.dart:211:46 - undefined_identifier
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\assessments\assessment_screen.dart:282:80 - deprecated_member_use
+

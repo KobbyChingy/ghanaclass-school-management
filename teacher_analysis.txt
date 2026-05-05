@@ -1,0 +1,5 @@
+﻿Analyzing teacher_students_screen.dart...                       
+
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\teachers\teacher_students_screen.dart:102:77 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\teachers\teacher_students_screen.dart:119:58 - deprecated_member_use
+

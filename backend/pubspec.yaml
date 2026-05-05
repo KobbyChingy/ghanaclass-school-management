@@ -1,0 +1,21 @@
+name: ghanaclass_backend
+
+description: GhanaClass backend (Dart Frog + PostgreSQL)
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.0.0
+
+dependencies:
+  dart_frog: ^1.1.0
+  postgres: ^3.4.0
+  crypto: ^3.0.3
+  bcrypt: ^1.2.0
+
+  # Optional but handy for local dev:
+  dotenv: ^4.2.0
+
+dev_dependencies:
+  lints: ^3.0.0
+  dart_frog_cli: ^1.2.0

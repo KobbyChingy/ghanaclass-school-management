@@ -1,0 +1,15 @@
+{
+    "baseUrl":  "http://localhost:8082",
+    "schoolCode":  "T20260429102451",
+    "adminEmail":  "admin_20260429102451@example.com",
+    "adminPassword":  "Admin1234!",
+    "staffEmail":  "teacher_20260429102451@example.com",
+    "staffPassword":  "Teacher1234!",
+    "registerSchoolReturnedToken":  true,
+    "adminLoginReturnedToken":  true,
+    "registerStaffSucceeded":  true,
+    "staffLoginReturnedToken":  true,
+    "syncPushAckedCount":  1,
+    "syncPullChangeCount":  2,
+    "syncPullCursor":  2
+}

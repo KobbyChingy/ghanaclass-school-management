@@ -1,0 +1,8 @@
+{
+  "chat.tools.terminal.autoApprove": {
+    "/^Test-Path \"\\$env:USERPROFILE\\\\Desktop\\\\flutter\\\\bin\\\\flutter\\.bat\";$/": {
+      "approve": true,
+      "matchCommandLine": true
+    }
+  }
+}

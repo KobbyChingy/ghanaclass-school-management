@@ -1,0 +1,166 @@
+name: Release
+
+# Trigger on version tags: git tag v1.2.3 && git push --tags
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+permissions:
+  contents: write   # needed to create GitHub Releases and upload assets
+
+jobs:
+  build-windows:
+    name: Build Windows Installers
+    runs-on: windows-latest
+
+    env:
+      FLUTTER_VERSION: '3.32.0'
+
+    steps:
+      # ------------------------------------------------------------------ #
+      # 1. Checkout
+      # ------------------------------------------------------------------ #
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ------------------------------------------------------------------ #
+      # 2. Set up Flutter
+      # ------------------------------------------------------------------ #
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      # ------------------------------------------------------------------ #
+      # 3. Install Inno Setup 6
+      # ------------------------------------------------------------------ #
+      - name: Install Inno Setup 6
+        run: |
+          $url = 'https://jrsoftware.org/download.php/is.exe'
+          $dest = "$env:TEMP\innosetup.exe"
+          Invoke-WebRequest -Uri $url -OutFile $dest
+          Start-Process -FilePath $dest -ArgumentList '/VERYSILENT', '/NORESTART', '/SUPPRESSMSGBOXES' -Wait
+          Write-Host "Inno Setup installed."
+        shell: pwsh
+
+      # ------------------------------------------------------------------ #
+      # 4. Derive version from tag (strips leading 'v')
+      # ------------------------------------------------------------------ #
+      - name: Derive version from tag
+        id: version
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $ver = $tag.TrimStart('v')
+          echo "VERSION=$ver" >> $env:GITHUB_OUTPUT
+          echo "TAG=$tag" >> $env:GITHUB_OUTPUT
+        shell: pwsh
+
+      # ------------------------------------------------------------------ #
+      # 5. Flutter pub get
+      # ------------------------------------------------------------------ #
+      - name: Flutter pub get
+        run: flutter pub get
+
+      # ------------------------------------------------------------------ #
+      # 6. Run tests
+      # ------------------------------------------------------------------ #
+      - name: Run tests
+        run: flutter test
+
+      # ------------------------------------------------------------------ #
+      # 7. Build MSIX package
+      # ------------------------------------------------------------------ #
+      - name: Build MSIX
+        run: |
+          flutter build windows --release `
+            --dart-define=GHANACLASS_API_BASE_URL=${{ secrets.GHANACLASS_API_BASE_URL }} `
+            --dart-define=GHANACLASS_TENANT_SCHEMA=${{ secrets.GHANACLASS_TENANT_SCHEMA }} `
+            --dart-define=GHANACLASS_SUPABASE_URL=${{ secrets.GHANACLASS_SUPABASE_URL }} `
+            --dart-define=GHANACLASS_SUPABASE_PUBLISHABLE_KEY=${{ secrets.GHANACLASS_SUPABASE_PUBLISHABLE_KEY }}
+          flutter pub run msix:create --install-certificate false
+        shell: pwsh
+
+      # ------------------------------------------------------------------ #
+      # 8. Build EXE installer (Inno Setup)
+      # ------------------------------------------------------------------ #
+      - name: Build EXE installer
+        run: |
+          .\scripts\build_inno_installer.ps1 `
+            -ApiBaseUrl "${{ secrets.GHANACLASS_API_BASE_URL }}" `
+            -TenantSchema "${{ secrets.GHANACLASS_TENANT_SCHEMA }}" `
+            -SupabaseUrl "${{ secrets.GHANACLASS_SUPABASE_URL }}" `
+            -SupabasePublishableKey "${{ secrets.GHANACLASS_SUPABASE_PUBLISHABLE_KEY }}"
+        shell: pwsh
+
+      # ------------------------------------------------------------------ #
+      # 9. Rename artifacts to include version
+      # ------------------------------------------------------------------ #
+      - name: Rename artifacts
+        id: artifacts
+        run: |
+          $ver = "${{ steps.version.outputs.VERSION }}"
+
+          # MSIX
+          $msixSrc = "build\windows\x64\runner\Release\ghanaclass_school_management.msix"
+          $msixDst = "dist\GhanaClassSchoolManagement_$ver.msix"
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Copy-Item $msixSrc $msixDst
+          echo "MSIX_PATH=$msixDst" >> $env:GITHUB_OUTPUT
+
+          # EXE
+          $exeSrc = "dist\GhanaClassSchoolManagement_Setup_$ver.exe"
+          echo "EXE_PATH=$exeSrc" >> $env:GITHUB_OUTPUT
+
+          Write-Host "MSIX: $msixDst"
+          Write-Host "EXE:  $exeSrc"
+        shell: pwsh
+
+      # ------------------------------------------------------------------ #
+      # 10. Upload artifacts (available even before release is published)
+      # ------------------------------------------------------------------ #
+      - name: Upload MSIX artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ghanaclass-msix-${{ steps.version.outputs.VERSION }}
+          path: ${{ steps.artifacts.outputs.MSIX_PATH }}
+          if-no-files-found: error
+
+      - name: Upload EXE artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ghanaclass-setup-${{ steps.version.outputs.VERSION }}
+          path: ${{ steps.artifacts.outputs.EXE_PATH }}
+          if-no-files-found: error
+
+      # ------------------------------------------------------------------ #
+      # 11. Create GitHub Release and attach installers
+      # ------------------------------------------------------------------ #
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.TAG }}
+          name: GhanaClass SMS v${{ steps.version.outputs.VERSION }}
+          body: |
+            ## GhanaClass School Management System v${{ steps.version.outputs.VERSION }}
+
+            ### Downloads
+            | File | Description |
+            |------|-------------|
+            | `GhanaClassSchoolManagement_Setup_${{ steps.version.outputs.VERSION }}.exe` | Windows installer (recommended) |
+            | `GhanaClassSchoolManagement_${{ steps.version.outputs.VERSION }}.msix` | Windows MSIX package |
+
+            ### Installation
+            1. Download the `.exe` installer and run it — it includes the Visual C++ Redistributable.
+            2. Follow the setup wizard and launch from the Start menu.
+
+            > **Note:** The MSIX package requires a trusted certificate. Use the EXE installer for most deployments.
+          draft: true
+          prerelease: false
+          files: |
+            ${{ steps.artifacts.outputs.EXE_PATH }}
+            ${{ steps.artifacts.outputs.MSIX_PATH }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

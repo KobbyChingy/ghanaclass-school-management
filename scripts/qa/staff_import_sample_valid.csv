@@ -1,0 +1,3 @@
+Portal Email,Password,First Name,Last Name,Phone Number,Portal Role,Staff ID,Gender,DOB,Hire Date,Position,Department,Base Salary,Is Active,Address,Emergency Contact
+teacher.one@demo.school,P@ssw0rd1,Akosua,Mensah,0551234567,Teacher,,Female,1992-05-12,2024-09-01,Teacher,Science,1500,TRUE,Accra,+233550000001
+admin.one@demo.school,P@ssw0rd2,Kwame,Boateng,0249876543,Admin,STAFF-ADM-001,Male,1988-11-03,2023-01-15,Administrator,Administration,2500,TRUE,Kumasi,+233240000002

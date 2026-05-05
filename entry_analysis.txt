@@ -1,0 +1,5 @@
+﻿Analyzing score_entry_screen.dart...                            
+
+   info - Unnecessary use of multiple underscores - lib\features\assessments\score_entry_screen.dart:118:45 - unnecessary_underscores
+   info - Unnecessary 'const' keyword - lib\features\assessments\score_entry_screen.dart:156:53 - unnecessary_const
+

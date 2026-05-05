@@ -1,0 +1,21 @@
+Doctor summary (to see all details, run flutter doctor -v):
+[!] Flutter (Channel stable, 3.38.7, on Microsoft Windows [Version 10.0.26100.7623], locale en-GB)
+    ! The flutter binary is not on your path. Consider adding C:\Users\ENOCH\Desktop\flutter\bin to your path.
+    ! The dart binary is not on your path. Consider adding C:\Users\ENOCH\Desktop\flutter\bin to your path.
+[???] Windows Version (11 Home 64-bit, 24H2, 2009)
+[!] Android toolchain - develop for Android devices (Android SDK version 32.1.0-rc1)
+    X cmdline-tools component is missing.
+      Try installing or updating Android Studio.
+      Alternatively, download the tools from https://developer.android.com/studio#command-line-tools-only and make sure to set the ANDROID_HOME environment variable.
+      See https://developer.android.com/studio/command-line for more details.
+    X Android license status unknown.
+      Run `flutter doctor --android-licenses` to accept the SDK licenses.
+      See https://flutter.dev/to/windows-android-setup for more details.
+[???] Chrome - develop for the web
+[!] Visual Studio - develop Windows apps (Visual Studio Build Tools 2019 16.11.52)
+    X The current Visual Studio installation is incomplete.
+      Please use Visual Studio Installer to complete the installation or reinstall Visual Studio.
+[???] Connected device (3 available)
+[???] Network resources
+
+! Doctor found issues in 3 categories.
