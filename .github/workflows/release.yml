@@ -14,9 +14,6 @@ jobs:
     name: Build Windows Installers
     runs-on: windows-latest
 
-    env:
-      FLUTTER_VERSION: '3.41.9'
-
     steps:
       # ------------------------------------------------------------------ #
       # 1. Checkout
@@ -30,9 +27,17 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
+
+      # ------------------------------------------------------------------ #
+      # 2b. Print SDK versions for easier CI debugging
+      # ------------------------------------------------------------------ #
+      - name: Show Flutter and Dart versions
+        run: |
+          flutter --version
+          dart --version
+        shell: pwsh
 
       # ------------------------------------------------------------------ #
       # 3. Install Inno Setup 6
@@ -80,7 +85,29 @@ jobs:
             --dart-define=GHANACLASS_TENANT_SCHEMA=${{ secrets.GHANACLASS_TENANT_SCHEMA }} `
             --dart-define=GHANACLASS_SUPABASE_URL=${{ secrets.GHANACLASS_SUPABASE_URL }} `
             --dart-define=GHANACLASS_SUPABASE_PUBLISHABLE_KEY=${{ secrets.GHANACLASS_SUPABASE_PUBLISHABLE_KEY }}
-          flutter pub run msix:create --install-certificate false
+
+          # CI does not have the local dev PFX from pubspec.yaml.
+          # Create a temporary self-signed cert for packaging.
+          New-Item -ItemType Directory -Force -Path windows\msix | Out-Null
+          $certPath = "windows\msix\ci-temp.pfx"
+          $certPassword = "GhanaClassCiTemp123!"
+          $securePassword = ConvertTo-SecureString -String $certPassword -Force -AsPlainText
+          $cert = New-SelfSignedCertificate `
+            -Type Custom `
+            -Subject "CN=GhanaClass" `
+            -KeyUsage DigitalSignature `
+            -FriendlyName "GhanaClass CI MSIX" `
+            -CertStoreLocation "Cert:\CurrentUser\My" `
+            -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3")
+          Export-PfxCertificate `
+            -Cert "Cert:\CurrentUser\My\$($cert.Thumbprint)" `
+            -FilePath $certPath `
+            -Password $securePassword | Out-Null
+
+          flutter pub run msix:create `
+            --install-certificate false `
+            --certificate-path $certPath `
+            --certificate-password $certPassword
         shell: pwsh
 
       # ------------------------------------------------------------------ #
