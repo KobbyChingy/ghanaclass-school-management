@@ -137,8 +137,13 @@ jobs:
           Copy-Item $msixSrc $msixDst
           echo "MSIX_PATH=$msixDst" >> $env:GITHUB_OUTPUT
 
-          # EXE
-          $exeSrc = "dist\GhanaClassSchoolManagement_Setup_$ver.exe"
+          # EXE (discover actual output, since Inno version may come from pubspec)
+          $exeCandidates = Get-ChildItem -Path dist -Filter "GhanaClassSchoolManagement_Setup_*.exe" |
+            Sort-Object LastWriteTime -Descending
+          if (-not $exeCandidates) {
+            throw "EXE installer not found in dist. Expected pattern: GhanaClassSchoolManagement_Setup_*.exe"
+          }
+          $exeSrc = Join-Path "dist" $exeCandidates[0].Name
           echo "EXE_PATH=$exeSrc" >> $env:GITHUB_OUTPUT
 
           Write-Host "MSIX: $msixDst"
