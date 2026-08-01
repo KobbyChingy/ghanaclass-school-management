@@ -26,6 +26,8 @@ This is a practical fallback, not a production cloud platform.
 
 Use this for demos, pilot testing, school onboarding, and short-term deployments.
 
+If you want a stable production hostname instead of a temporary `trycloudflare.com` URL, use the named tunnel flow in `docs/stable_cloudflare_tunnel.md`.
+
 ## Prerequisites
 
 1. Supabase `DATABASE_URL`
