@@ -97,5 +97,6 @@ For release builds, use the same tunnel URL as `GHANACLASS_API_BASE_URL`.
 
 When you are ready for a more stable hosted environment, move this same backend to:
 
+- Tailscale Funnel, if you want a stable free `*.ts.net` hostname without buying a domain
 - Google Cloud Run, if billing verification starts working later
 - Oracle Cloud Always Free VM, if you want a more permanent free host and can handle Linux server setup
