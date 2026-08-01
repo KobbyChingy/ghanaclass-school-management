@@ -50,6 +50,7 @@ backend/.env.*
 /dist/
 
 # Local analysis / build log scratch files (root-level *.txt)
+/build_*.txt
 /analyze_*.txt
 /analysis_*.txt
 /analyzer_*.txt
@@ -67,9 +68,13 @@ app.*.symbols
 app.*.map.json
 
 # Android Studio will place build artifacts here
+/android/build/
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Backend production build output
+/backend/build/
 
 # Android signing files (local only)
 /android/key.properties
