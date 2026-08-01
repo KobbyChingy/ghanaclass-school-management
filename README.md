@@ -4,6 +4,8 @@ A new Flutter project.
 
 ## Documentation
 
+- Cloud Run Deployment: `docs/cloud_run_deployment.md`
+- Free Public Hosting: `docs/free_public_hosting.md`
 - User Manual (Windows): `docs/user_manual.md`
 - System Features Documentation: `docs/features_documentation.md`
 - Render Deployment: `docs/render_deployment.md`

@@ -123,6 +123,40 @@ You can also use the helper script:
 
 The helper script expects the exact DSN from Supabase Connect and is the simplest way to start the local backend against Supabase.
 
+## Deploy on Cloud Run
+
+If you need the lowest-friction free-tier host for this backend, use Google Cloud Run.
+
+Why Cloud Run fits this repo:
+
+- it works directly with the existing `backend/Dockerfile`
+- it scales to zero when idle
+- low-traffic usage can fit inside the Cloud Run free tier
+- it keeps Supabase as the Postgres backend
+
+Recommended deploy command from the repo root:
+
+```powershell
+./scripts/deploy_cloud_run.ps1 -ProjectId your-gcp-project-id -DatabaseUrl "postgres://.../postgres?sslmode=require"
+```
+
+Recommended cost-control defaults used by the helper:
+
+- region: `us-central1`
+- memory: `512Mi`
+- cpu: `1`
+- concurrency: `20`
+- min instances: `0`
+- max instances: `1`
+
+After deploy:
+
+- use the Cloud Run URL as `GHANACLASS_API_BASE_URL`
+- keep `GHANACLASS_TENANT_SCHEMA` aligned with the school schema you want to target
+- register the first school through `POST /auth/register_school` or the app flow
+
+See `../docs/cloud_run_deployment.md` for the full setup.
+
 ## Deploy on Render
 
 This repository includes a Render blueprint at `../render.yaml` for the Dart Frog backend.

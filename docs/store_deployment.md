@@ -2,6 +2,9 @@
 
 This project is already set up for a hosted backend with Supabase as the database layer.
 
+If you need the cheapest practical hosting path, prefer Google Cloud Run for the backend. See `docs/cloud_run_deployment.md`.
+If billing verification blocks that path, use the local-machine plus Cloudflare Tunnel fallback in `docs/free_public_hosting.md`.
+
 For production distribution, keep this split:
 
 - Flutter app on Windows and Android
