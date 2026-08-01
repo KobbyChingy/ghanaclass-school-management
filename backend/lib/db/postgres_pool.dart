@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:postgres/postgres.dart';
 
 import 'package:ghanaclass_backend/config/env.dart';
@@ -24,71 +25,138 @@ class _ParsedDatabaseUrl {
 
 _ParsedDatabaseUrl _parseDatabaseUrl(String raw) {
   final value = raw.trim();
-  final schemeSeparator = value.indexOf('://');
-  if (schemeSeparator <= 0) {
+  final uri = Uri.parse(value);
+
+  if (uri.scheme.isEmpty) {
     throw FormatException('Invalid DATABASE_URL: missing scheme');
   }
 
-  final remainder = value.substring(schemeSeparator + 3);
-  final atIndex = remainder.lastIndexOf('@');
-  if (atIndex <= 0 || atIndex >= remainder.length - 1) {
-    throw FormatException('Invalid DATABASE_URL: missing user info or host');
+  if (uri.host.isEmpty) {
+    throw FormatException(
+      'Invalid DATABASE_URL: missing host. Ensure the URL follows postgres://user:password@host:port/database?sslmode=require',
+    );
   }
 
-  final userInfo = remainder.substring(0, atIndex);
-  final hostAndPath = remainder.substring(atIndex + 1);
+  final userInfo = uri.userInfo;
+  if (userInfo.isEmpty || !userInfo.contains(':')) {
+    throw FormatException('Invalid DATABASE_URL: missing user info or password');
+  }
+
   final colonIndex = userInfo.indexOf(':');
-  final username = colonIndex == -1
-      ? Uri.decodeComponent(userInfo)
-      : Uri.decodeComponent(userInfo.substring(0, colonIndex));
-  final password = colonIndex == -1
-      ? ''
-      : Uri.decodeComponent(userInfo.substring(colonIndex + 1));
-
-  final normalized = Uri.parse(
-    '${value.substring(0, schemeSeparator + 3)}placeholder:placeholder@$hostAndPath',
-  );
-
-  final database = normalized.pathSegments.isEmpty ? 'postgres' : normalized.pathSegments.last;
+  final username = Uri.decodeComponent(userInfo.substring(0, colonIndex));
+  final password = Uri.decodeComponent(userInfo.substring(colonIndex + 1));
+  final database = uri.pathSegments.isEmpty ? 'postgres' : uri.pathSegments.last;
 
   return _ParsedDatabaseUrl(
-    host: normalized.host,
-    port: normalized.hasPort ? normalized.port : 5432,
+    host: uri.host,
+    port: uri.hasPort ? uri.port : 5432,
     database: database,
     username: username,
     password: password,
-    queryParameters: normalized.queryParameters,
+    queryParameters: uri.queryParameters,
+  );
+}
+
+bool _isProbablyValidHost(String value) {
+  final trimmed = value.trim();
+  if (trimmed.isEmpty) return false;
+  if (trimmed == 'localhost') return true;
+  if (trimmed.startsWith('127.') || trimmed.startsWith('192.') || trimmed.startsWith('::1')) {
+    return true;
+  }
+  return trimmed.contains('.') && !trimmed.contains('@');
+}
+
+({Endpoint endpoint, bool useSsl}) _buildSettingsFromEnvVars({required bool useSsl}) {
+  final dbHost = envString('DB_HOST', defaultValue: '').trim();
+  final dbName = envString('DB_NAME', defaultValue: '').trim();
+  final dbUser = envString('DB_USER', defaultValue: '').trim();
+  final dbPassword = envString('DB_PASSWORD', defaultValue: '').trim();
+
+  if (dbHost.isEmpty || dbName.isEmpty || dbUser.isEmpty) {
+    throw StateError(
+      'Database environment variables are incomplete. ' 
+      'Set DATABASE_URL or all of DB_HOST, DB_NAME, DB_USER, and DB_PASSWORD.',
+    );
+  }
+
+  if (dbHost == dbUser) {
+    throw StateError(
+      'Invalid database configuration: DB_HOST is the same as DB_USER. ' 
+      'Check for swapped environment variables or a malformed DATABASE_URL.',
+    );
+  }
+
+  if (!_isProbablyValidHost(dbHost)) {
+    throw StateError(
+      'Invalid DB_HOST value: "$dbHost". ' 
+      'DB_HOST should be a valid host or IP address for the Postgres server.',
+    );
+  }
+
+  return (
+    endpoint: Endpoint(
+      host: dbHost,
+      port: envInt('DB_PORT', defaultValue: 5432),
+      database: dbName,
+      username: dbUser,
+      password: dbPassword,
+    ),
+    useSsl: useSsl,
   );
 }
 
 ({Endpoint endpoint, bool useSsl}) _resolveConnectionSettings() {
   final databaseUrl = envString('DATABASE_URL', defaultValue: '').trim();
   if (databaseUrl.isNotEmpty) {
-    final parsed = _parseDatabaseUrl(databaseUrl);
-    final sslMode = (parsed.queryParameters['sslmode'] ?? '').trim().toLowerCase();
+    try {
+      final parsed = _parseDatabaseUrl(databaseUrl);
+      final sslMode = (parsed.queryParameters['sslmode'] ?? '').trim().toLowerCase();
 
-    return (
-      endpoint: Endpoint(
-        host: parsed.host,
-        port: parsed.port,
-        database: parsed.database,
-        username: parsed.username,
-        password: parsed.password,
-      ),
-      useSsl: sslMode == 'require' || sslMode == 'verify-full' || sslMode == 'verify-ca',
-    );
+      if (parsed.host == parsed.username) {
+        throw FormatException(
+          'Invalid DATABASE_URL: parsed host matches the username. '
+          'This usually means the URL is malformed or missing the @ separator. '
+          'Check your DATABASE_URL environment variable.',
+        );
+      }
+
+      return (
+        endpoint: Endpoint(
+          host: parsed.host,
+          port: parsed.port,
+          database: parsed.database,
+          username: parsed.username,
+          password: parsed.password,
+        ),
+        useSsl: sslMode == 'require' || sslMode == 'verify-full' || sslMode == 'verify-ca',
+      );
+    } on FormatException catch (error) {
+      final fallbackHost = envString('DB_HOST', defaultValue: '').trim();
+      final fallbackName = envString('DB_NAME', defaultValue: '').trim();
+      final fallbackUser = envString('DB_USER', defaultValue: '').trim();
+      final fallbackPass = envString('DB_PASSWORD', defaultValue: '').trim();
+      final fallbackSsl = envBool('DB_SSL', defaultValue: false);
+
+      if (fallbackHost.isNotEmpty && fallbackName.isNotEmpty && fallbackUser.isNotEmpty) {
+        stderr.writeln(
+          'WARNING: Invalid DATABASE_URL; falling back to DB_* env vars. ${error.message}',
+        );
+        if (fallbackHost == fallbackUser) {
+          throw FormatException(
+            'Invalid DB_HOST/DB_USER configuration: DB_HOST is the same as DB_USER. '
+            'Verify your backend environment variables.',
+          );
+        }
+
+        return _buildSettingsFromEnvVars(useSsl: fallbackSsl);
+      }
+
+      rethrow;
+    }
   }
 
-  final endpoint = Endpoint(
-    host: envString('DB_HOST'),
-    port: envInt('DB_PORT', defaultValue: 5432),
-    database: envString('DB_NAME'),
-    username: envString('DB_USER'),
-    password: envString('DB_PASSWORD'),
-  );
-
-  final useSsl = envBool('DB_SSL', defaultValue: false);
-  return (endpoint: endpoint, useSsl: useSsl);
+  return _buildSettingsFromEnvVars(useSsl: envBool('DB_SSL', defaultValue: false));
 }
 
 Pool getPool() {

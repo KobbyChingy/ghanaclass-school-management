@@ -10,6 +10,42 @@ import 'package:ghanaclass_school_management/core/config/backend_config.dart';
 
 export 'database_provider.dart';
 
+bool _isLocalHostValue(String value) {
+  final uri = Uri.tryParse(value.trim());
+  if (uri == null) return false;
+  final host = uri.host.toLowerCase();
+  return host == 'localhost' || host == '127.0.0.1' || host == '::1';
+}
+
+bool _isHostedDefaultUrl(String value) {
+  final uri = Uri.tryParse(value.trim());
+  if (uri == null) return false;
+  final host = uri.host.toLowerCase();
+  if (host.isEmpty) return false;
+  if (host == 'localhost' || host == '127.0.0.1' || host == '::1') return false;
+  if (host == 'api.example.com' || host == 'api.example') return false;
+  return uri.scheme == 'https' || uri.scheme == 'http';
+}
+
+Future<void> _ensureServerDefaults(SharedPreferences prefs) async {
+  await prefs.setBool('server_enabled', true);
+
+  final configuredBaseUrl = (prefs.getString('server_base_url') ?? '').trim();
+  final defaultBaseUrl = BackendConfig.defaultApiBaseUrl.trim();
+  final shouldSetDefaultBaseUrl = (configuredBaseUrl.isEmpty &&
+      BackendConfig.isValidApiBaseUrl(defaultBaseUrl)) ||
+      (_isLocalHostValue(configuredBaseUrl) &&
+          BackendConfig.isValidApiBaseUrl(defaultBaseUrl));
+
+  if (shouldSetDefaultBaseUrl) {
+    await prefs.setString('server_base_url', defaultBaseUrl);
+  }
+
+  if ((prefs.getString('server_school_schema') ?? '').trim().isEmpty) {
+    await prefs.setString('server_school_schema', BackendConfig.defaultSchoolSchema);
+  }
+}
+
 // Shared Preferences provider
 final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
   throw UnimplementedError(); // Initialized in main or via provider override
@@ -67,13 +103,7 @@ final authInitProvider = FutureProvider<void>((ref) async {
   final prefs = await SharedPreferences.getInstance();
 
   if (AppMode.forceServerModeOn) {
-    await prefs.setBool('server_enabled', true);
-    if ((prefs.getString('server_base_url') ?? '').trim().isEmpty) {
-      await prefs.setString('server_base_url', BackendConfig.defaultApiBaseUrl);
-    }
-    if ((prefs.getString('server_school_schema') ?? '').trim().isEmpty) {
-      await prefs.setString('server_school_schema', BackendConfig.defaultSchoolSchema);
-    }
+    await _ensureServerDefaults(prefs);
   }
 
   if (AppMode.forceServerModeOff) {
@@ -122,13 +152,7 @@ final institutionRegisteredProvider = FutureProvider<bool>((ref) async {
   final prefs = await SharedPreferences.getInstance();
 
   if (AppMode.forceServerModeOn) {
-    await prefs.setBool('server_enabled', true);
-    if ((prefs.getString('server_base_url') ?? '').trim().isEmpty) {
-      await prefs.setString('server_base_url', BackendConfig.defaultApiBaseUrl);
-    }
-    if ((prefs.getString('server_school_schema') ?? '').trim().isEmpty) {
-      await prefs.setString('server_school_schema', BackendConfig.defaultSchoolSchema);
-    }
+    await _ensureServerDefaults(prefs);
   }
 
   // In Server Mode, registration is driven by server token / cached flag.
@@ -138,11 +162,10 @@ final institutionRegisteredProvider = FutureProvider<bool>((ref) async {
 
   final serverEnabled = AppMode.resolveServerEnabled(prefs.getBool('server_enabled'));
   if (serverEnabled) {
-    final token = prefs.getString('server_token');
-    final isRegistered = (prefs.getBool('institution_registered') ?? false) ||
-        (token != null && token.trim().isNotEmpty);
-    await prefs.setBool('institution_registered', isRegistered);
-    return isRegistered;
+    // Server-backed schools are shared across devices, so a fresh install must
+    // still be able to open the login flow before it has any local cache.
+    await prefs.setBool('institution_registered', true);
+    return true;
   }
   
   // 1. Check SQLite (Source of Truth)

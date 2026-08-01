@@ -227,6 +227,10 @@ final payrollHistoryProvider = FutureProvider.family<List<PayrollHistoryEntry>, 
   return ref.watch(financeServiceProvider).getPayrollHistory(period.month, period.year);
 });
 
+final unpaidPayrollProvider = FutureProvider.family<List<StaffPayrollOwedRow>, PayrollPeriod>((ref, period) async {
+  return ref.watch(financeServiceProvider).getUnpaidPayroll(period.month, period.year);
+});
+
 final globalFinancialOverviewProvider = FutureProvider<Map<String, double>>((ref) async {
   return ref.watch(financeServiceProvider).getGlobalFinancialOverview();
 });

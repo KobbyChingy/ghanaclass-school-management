@@ -124,10 +124,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     setState(() {
       _serverEnabled = AppMode.resolveServerEnabled(prefs.getBool('server_enabled'));
-      _serverBaseUrlController.text =
-          prefs.getString('server_base_url') ?? BackendConfig.defaultApiBaseUrl;
-      _schoolSchemaController.text =
-          prefs.getString('server_school_schema') ?? BackendConfig.defaultSchoolSchema;
+      final configuredServerBaseUrl = prefs.getString('server_base_url')?.trim();
+      final resolvedServerBaseUrl = configuredServerBaseUrl != null && configuredServerBaseUrl.isNotEmpty
+          ? configuredServerBaseUrl
+          : BackendConfig.isValidApiBaseUrl(BackendConfig.defaultApiBaseUrl)
+              ? BackendConfig.defaultApiBaseUrl
+              : '';
+      _serverBaseUrlController.text = resolvedServerBaseUrl;
+
+      final configuredSchoolSchema = prefs.getString('server_school_schema')?.trim();
+      _schoolSchemaController.text = configuredSchoolSchema != null && configuredSchoolSchema.isNotEmpty
+          ? configuredSchoolSchema
+          : BackendConfig.defaultSchoolSchema;
     });
   }
 

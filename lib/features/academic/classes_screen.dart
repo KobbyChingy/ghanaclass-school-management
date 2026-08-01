@@ -103,6 +103,35 @@ class ClassesScreen extends ConsumerWidget {
     );
   }
 
+  Future<void> _confirmDeleteClass(BuildContext context, WidgetRef ref, SchoolClassesData cls) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Delete Class'),
+          content: Text('Are you sure you want to delete ${cls.className}? This will remove the class and its assignments.'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+            ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete')),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await ref.read(academicServiceProvider).deleteClass(cls.id);
+      ref.invalidate(classesProvider);
+      ref.invalidate(classAssignmentSummariesProvider);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Class deleted successfully.')));
+    } catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to delete class: $error'), backgroundColor: Colors.red));
+    }
+  }
+
   Widget _buildClassesList(BuildContext context, List<SchoolClassesData> classes, WidgetRef ref) {
     final teachers = ref.watch(teachersProvider).value ?? const <User>[];
     final assignmentSummaries = ref.watch(classAssignmentSummariesProvider).value ?? const <int, ClassAssignmentsSummary>{};
@@ -207,6 +236,11 @@ class ClassesScreen extends ConsumerWidget {
                             builder: (context) => ClassAssignmentDialog(schoolClass: cls),
                           );
                         },
+                      ),
+                      IconButton(
+                        icon: const Icon(LucideIcons.trash2, size: 18, color: Colors.redAccent),
+                        tooltip: 'Delete Class',
+                        onPressed: () => _confirmDeleteClass(context, ref, cls),
                       ),
                     ],
                   ),

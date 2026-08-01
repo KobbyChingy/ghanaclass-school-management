@@ -14,6 +14,16 @@ if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
 
+val releaseStoreFilePath = keystoreProperties.getProperty("storeFile")
+val releaseStoreFile =
+    releaseStoreFilePath
+        ?.takeIf { it.isNotBlank() }
+        ?.let { file(it) }
+val hasReleaseKeystore =
+    keystorePropertiesFile.exists() &&
+        releaseStoreFile != null &&
+        releaseStoreFile.exists()
+
 android {
     namespace = "com.ghanaclass.schoolmanagement"
     compileSdk = flutter.compileSdkVersion
@@ -38,10 +48,10 @@ android {
 
     signingConfigs {
         create("release") {
-            if (keystorePropertiesFile.exists()) {
+            if (hasReleaseKeystore) {
                 keyAlias = keystoreProperties["keyAlias"] as String
                 keyPassword = keystoreProperties["keyPassword"] as String
-                storeFile = file(keystoreProperties["storeFile"] as String)
+                storeFile = releaseStoreFile
                 storePassword = keystoreProperties["storePassword"] as String
             }
         }
@@ -49,7 +59,7 @@ android {
 
     buildTypes {
         release {
-            signingConfig = if (keystorePropertiesFile.exists()) {
+            signingConfig = if (hasReleaseKeystore) {
                 signingConfigs.getByName("release")
             } else {
                 signingConfigs.getByName("debug")

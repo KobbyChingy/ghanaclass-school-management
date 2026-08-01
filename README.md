@@ -6,6 +6,7 @@ A new Flutter project.
 
 - User Manual (Windows): `docs/user_manual.md`
 - System Features Documentation: `docs/features_documentation.md`
+- Render Deployment: `docs/render_deployment.md`
 - Store Deployment: `docs/store_deployment.md`
 
 ## Getting Started

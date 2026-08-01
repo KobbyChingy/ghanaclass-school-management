@@ -123,6 +123,43 @@ You can also use the helper script:
 
 The helper script expects the exact DSN from Supabase Connect and is the simplest way to start the local backend against Supabase.
 
+## Deploy on Render
+
+This repository includes a Render blueprint at `../render.yaml` for the Dart Frog backend.
+
+What the Render setup does:
+
+- Builds the backend from `backend/Dockerfile`
+- Uses `backend` as the Render root directory
+- Uses `backend` as the Docker build context
+- Runs `dart run bin/migrate.dart` before starting the production server
+- Exposes the root route `/` as the health check
+
+Recommended setup:
+
+1. Push this repository to GitHub.
+2. In Render, create a new Blueprint instance from the repo.
+3. Confirm the `ghanaclass-backend` web service is detected.
+4. Set `DATABASE_URL` in Render when prompted.
+5. Allow Render to generate `JWT_SECRET` automatically on first service creation.
+
+```env
+DATABASE_URL=<exact Supabase connection string>
+```
+
+Notes:
+
+- Use the exact Supabase DSN from the Connect dialog.
+- For Supabase, prefer a DSN with `sslmode=require`.
+- The startup migration step is safe to run on each deploy because the current SQL migrations are written to be repeatable.
+- The backend only auto-deploys when files under `backend` change because the service root is scoped there.
+
+After Render deploys successfully:
+
+- Use the Render service URL as the Flutter `GHANACLASS_API_BASE_URL`
+- Keep `GHANACLASS_TENANT_SCHEMA` aligned with the school schema you are targeting
+- Register the first school through `POST /auth/register_school` or through the app flow that calls that endpoint
+
 Practical local sequence:
 
 1. Copy the exact Session pooler `DATABASE_URL` from Supabase Connect.

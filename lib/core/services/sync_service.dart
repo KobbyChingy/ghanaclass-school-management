@@ -39,7 +39,11 @@ class SyncService {
   Future<String?> _serverBaseUrl() async {
     final prefs = await SharedPreferences.getInstance();
     final v = prefs.getString(_prefServerBaseUrl);
-    if (v?.trim().isEmpty ?? true) return BackendConfig.defaultApiBaseUrl;
+    if (v?.trim().isEmpty ?? true) {
+      return BackendConfig.isValidApiBaseUrl(BackendConfig.defaultApiBaseUrl)
+          ? BackendConfig.defaultApiBaseUrl
+          : null;
+    }
     return v!.trim();
   }
 

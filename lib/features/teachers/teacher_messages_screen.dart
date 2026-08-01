@@ -338,6 +338,24 @@ class _ThreadPanelState extends ConsumerState<_ThreadPanel> {
             ? parent!.phoneNumber.trim()
             : widget.student.guardianPhone.trim();
 
+        if (parent == null && widget.sendInApp) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            widget.onSendPrefsChanged(false, widget.sendSms, widget.sendEmail);
+          });
+        }
+
+        if (parent == null && !widget.sendSms && !widget.sendEmail) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            if (phone.isNotEmpty) {
+              widget.onSendPrefsChanged(false, true, false);
+            } else if (email.isNotEmpty) {
+              widget.onSendPrefsChanged(false, false, true);
+            }
+          });
+        }
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -392,16 +410,17 @@ class _ThreadPanelState extends ConsumerState<_ThreadPanel> {
                     const SizedBox(height: 12),
                     Row(
                       children: [
-                        Expanded(
-                          child: CheckboxListTile(
-                            dense: true,
-                            contentPadding: EdgeInsets.zero,
-                            title: const Text('In-app'),
-                            subtitle: Text(parent == null ? 'Requires parent account' : 'Stores in inbox'),
-                            value: widget.sendInApp,
-                            onChanged: (v) => widget.onSendPrefsChanged(v ?? false, widget.sendSms, widget.sendEmail),
+                        if (parent != null)
+                          Expanded(
+                            child: CheckboxListTile(
+                              dense: true,
+                              contentPadding: EdgeInsets.zero,
+                              title: const Text('In-app'),
+                              subtitle: Text(parent == null ? 'Requires parent account' : 'Stores in inbox'),
+                              value: widget.sendInApp,
+                              onChanged: (v) => widget.onSendPrefsChanged(v ?? false, widget.sendSms, widget.sendEmail),
+                            ),
                           ),
-                        ),
                         Expanded(
                           child: CheckboxListTile(
                             dense: true,

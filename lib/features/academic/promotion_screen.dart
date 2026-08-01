@@ -28,13 +28,18 @@ class _PromotionScreenState extends ConsumerState<PromotionScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Class Promotion Tool'),
+        title: const Text('Class Transfer Tool'),
       ),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(
           children: [
             _buildSelectionHeader(classesAsync),
+            const SizedBox(height: 12),
+            const Text(
+              'Use this tool to move students between classes. It works for both promotion and demotion, depending on the selected source and target classes.',
+              style: TextStyle(color: AppTheme.textMuted),
+            ),
             const SizedBox(height: 24),
             Expanded(child: _buildStudentList()),
             const SizedBox(height: 24),
@@ -173,7 +178,7 @@ class _PromotionScreenState extends ConsumerState<PromotionScreen> {
               ? null 
               : _processPromotion,
             icon: _isPromoting ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(LucideIcons.checkCircle),
-            label: Text(_isPromoting ? 'PROMOTING...' : 'CONFIRM PROMOTION'),
+            label: Text(_isPromoting ? 'TRANSFERRING...' : 'TRANSFER STUDENTS'),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.success,
               foregroundColor: Colors.white,
@@ -208,7 +213,7 @@ class _PromotionScreenState extends ConsumerState<PromotionScreen> {
           actorRole: UserRole.admin,
           module: 'academic',
           actionType: 'bulk_promotion',
-          description: 'Promoted $count students from class ID $_sourceClassId to $_targetClassId',
+          description: 'Transferred $count students from class ID $_sourceClassId to $_targetClassId',
           isImportant: true,
         );
       }

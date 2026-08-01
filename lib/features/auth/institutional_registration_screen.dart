@@ -257,16 +257,14 @@ class _InstitutionalRegistrationScreenState
                                     padding: const EdgeInsets.all(10),
                                     child: ClipRRect(
                                       borderRadius: BorderRadius.circular(14),
-                                      child: Image.network(
-                                        'https://pub-141831e61e69445289222976a15b6fb3.r2.dev/Image_to_url_V2/OmniWeave-Logo-imagetourl.cloud-1768845152819-xd0lbd.jpeg',
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (context, error, stackTrace) {
-                                          return Container(
-                                            color: const Color(0xFFF3F6FC),
-                                            alignment: Alignment.center,
-                                            child: const Icon(Icons.school, size: 28, color: Color(0xFF7B8AA6)),
-                                          );
-                                        },
+                                      child: Container(
+                                        color: const Color(0xFFF3F6FC),
+                                        alignment: Alignment.center,
+                                        child: const Icon(
+                                          Icons.school_rounded,
+                                          size: 28,
+                                          color: Color(0xFF7B8AA6),
+                                        ),
                                       ),
                                     ),
                                   ),

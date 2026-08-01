@@ -10,7 +10,9 @@ param(
 
   [string]$SupabasePublishableKey = 'sb_publishable_7oThgrzPu25cDp-4i_7I-w_y8YJ7H0f',
 
-  [string]$ConfigFile = '.\scripts\release.env'
+  [string]$ConfigFile = '.\scripts\release.env',
+
+  [switch]$AllowLocalhostApiBaseUrl
 )
 
 $ErrorActionPreference = 'Stop'
@@ -40,6 +42,31 @@ function Import-ReleaseConfig {
   return $values
 }
 
+function Assert-HostedApiBaseUrl {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$Value,
+
+    [switch]$AllowLocalhost
+  )
+
+  if ($AllowLocalhost) {
+    return
+  }
+
+  $trimmed = $Value.Trim()
+  [System.Uri]$uri = $null
+  if (-not [System.Uri]::TryCreate($trimmed, [System.UriKind]::Absolute, [ref]$uri)) {
+    throw "Invalid GHANACLASS_API_BASE_URL '$trimmed'. Use an absolute URL such as https://api.your-domain.com"
+  }
+
+  $apiHost = $uri.Host.ToLowerInvariant()
+  $localHosts = @('localhost', '127.0.0.1', '::1')
+  if ($localHosts -contains $apiHost) {
+    throw "Refusing production desktop installer build with local API URL '$trimmed'. Set GHANACLASS_API_BASE_URL to a hosted backend (or pass -AllowLocalhostApiBaseUrl for local-only testing)."
+  }
+}
+
 Push-Location (Split-Path -Parent $PSCommandPath)
 Pop-Location
 
@@ -64,6 +91,8 @@ if ($releaseConfig.ContainsKey('GHANACLASS_SUPABASE_PUBLISHABLE_KEY')) {
 if (-not $ApiBaseUrl) {
   throw 'Missing ApiBaseUrl. Pass -ApiBaseUrl or create scripts/release.env from scripts/release.env.example.'
 }
+
+Assert-HostedApiBaseUrl -Value $ApiBaseUrl -AllowLocalhost:$AllowLocalhostApiBaseUrl
 
 $issPath = Join-Path $repoRoot 'installer\inno\ghanaclass_school_management.iss'
 

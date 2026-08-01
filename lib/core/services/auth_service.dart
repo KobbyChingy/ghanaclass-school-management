@@ -110,10 +110,14 @@ class AuthService {
     if (_remote == null) return null;
 
     final prefs = await SharedPreferences.getInstance();
-    final configuredBaseUrl = prefs.getString(_prefServerBaseUrl);
-    final baseUrl = (configuredBaseUrl == null || configuredBaseUrl.trim().isEmpty)
-      ? BackendConfig.defaultApiBaseUrl
-        : configuredBaseUrl.trim();
+    final configuredBaseUrl = prefs.getString(_prefServerBaseUrl)?.trim();
+    final baseUrl = (configuredBaseUrl == null || configuredBaseUrl.isEmpty)
+        ? BackendConfig.defaultApiBaseUrl
+        : configuredBaseUrl;
+
+    if (!BackendConfig.isValidApiBaseUrl(baseUrl)) {
+      return null;
+    }
 
     // Recreate only if baseUrl changed.
     if (_remote!.baseUrl != baseUrl) {
@@ -121,6 +125,13 @@ class AuthService {
     }
 
     return _remote;
+  }
+
+  Future<String?> _serverSchoolSchema() async {
+    final prefs = await SharedPreferences.getInstance();
+    final schema = prefs.getString(_prefServerSchoolSchema);
+    if (schema == null || schema.trim().isEmpty) return null;
+    return schema.trim();
   }
 
   Future<String?> _serverToken() async {
@@ -569,6 +580,7 @@ class AuthService {
         password: password,
         fullName: fullName,
         role: role.name,
+        schoolSchema: await _serverSchoolSchema(),
       );
 
       // Backend owns IDs; return 0 as placeholder.
@@ -617,6 +629,7 @@ class AuthService {
             password: password,
             fullName: fullName,
             role: role.name,
+            schoolSchema: await _serverSchoolSchema(),
           );
         }
       }
@@ -674,6 +687,7 @@ class AuthService {
         password: password,
         fullName: fullName,
         role: role.name,
+        schoolSchema: await _serverSchoolSchema(),
       );
 
       final passwordHash = PasswordHasher.hashPassword(password);
@@ -780,6 +794,7 @@ class AuthService {
         email: normalizedEmail,
         password: password,
         role: role.name,
+        schoolSchema: await _serverSchoolSchema(),
       );
       final token = resp['token']?.toString();
       final userJson = resp['user'];
@@ -1132,6 +1147,7 @@ class AuthService {
       fullName: fullName,
       role: role.name,
       isActive: isActive,
+      schoolSchema: await _serverSchoolSchema(),
     );
   }
 

@@ -1,0 +1,9 @@
+.dart_tool/
+build/
+.git/
+.gitignore
+.env
+.env.*
+server.out.log
+server.err.log
+.server_pid

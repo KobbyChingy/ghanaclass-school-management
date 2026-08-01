@@ -64,6 +64,28 @@ jobs:
         shell: pwsh
 
       # ------------------------------------------------------------------ #
+      # 4b. Guard against localhost API in release builds
+      # ------------------------------------------------------------------ #
+      - name: Validate hosted API base URL
+        run: |
+          $value = "${{ secrets.GHANACLASS_API_BASE_URL }}".Trim()
+          if (-not $value) {
+            throw "GHANACLASS_API_BASE_URL secret is empty"
+          }
+
+          [System.Uri]$uri = $null
+          if (-not [System.Uri]::TryCreate($value, [System.UriKind]::Absolute, [ref]$uri)) {
+            throw "GHANACLASS_API_BASE_URL must be an absolute URL. Current value: $value"
+          }
+
+          $apiHost = $uri.Host.ToLowerInvariant()
+          $localHosts = @('localhost', '127.0.0.1', '::1')
+          if ($localHosts -contains $apiHost) {
+            throw "GHANACLASS_API_BASE_URL points to localhost ($value). Release builds must use a hosted backend so mobile and desktop users can both sign in."
+          }
+        shell: pwsh
+
+      # ------------------------------------------------------------------ #
       # 5. Flutter pub get
       # ------------------------------------------------------------------ #
       - name: Flutter pub get

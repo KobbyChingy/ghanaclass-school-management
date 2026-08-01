@@ -303,6 +303,13 @@ class ParentService {
     return await (_database.select(_database.parentAccounts)..where((p) => p.studentId.equals(studentId))).getSingleOrNull();
   }
 
+  Future<List<ParentAccount>> getParentsForStudent(int studentId) async {
+    return await (_database.select(_database.parentAccounts)
+          ..where((p) => p.studentId.equals(studentId))
+          ..orderBy([(p) => OrderingTerm.asc(p.parentName)]))
+        .get();
+  }
+
   Future<List<ParentMessage>> getTeacherParentThread({
     required int parentId,
     required int studentId,

@@ -23,9 +23,11 @@ class RemoteAuthApi {
     required String email,
     required String password,
     String? role,
+    String? schoolSchema,
   }) async {
     return _postJson(
       '/auth/login',
+      schoolSchema: schoolSchema,
       body: {
         'email': email,
         'password': password,
@@ -40,9 +42,11 @@ class RemoteAuthApi {
     required String adminEmail,
     required String adminPassword,
     required String adminFullName,
+    String? schoolSchema,
   }) async {
     return _postJson(
       '/auth/register_school',
+      schoolSchema: schoolSchema,
       body: {
         'code': code,
         'name': name,
@@ -59,9 +63,11 @@ class RemoteAuthApi {
     required String password,
     required String fullName,
     required String role,
+    String? schoolSchema,
   }) async {
     return _postJson(
       '/auth/register_staff',
+      schoolSchema: schoolSchema,
       headers: {
         'Authorization': 'Bearer $adminToken',
       },
@@ -80,9 +86,11 @@ class RemoteAuthApi {
     String? fullName,
     String? role,
     bool? isActive,
+    String? schoolSchema,
   }) async {
     return _postJson(
       '/auth/update_staff',
+      schoolSchema: schoolSchema,
       headers: {
         'Authorization': 'Bearer $adminToken',
       },
@@ -97,16 +105,24 @@ class RemoteAuthApi {
 
   Future<Map<String, dynamic>> _postJson(
     String path, {
+    String? schoolSchema,
     required Map<String, dynamic> body,
     Map<String, String>? headers,
   }) async {
+    final mergedHeaders = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      ...?headers,
+    };
+
+    final normalizedSchema = schoolSchema?.trim();
+    if (normalizedSchema != null && normalizedSchema.isNotEmpty) {
+      mergedHeaders['x-school-schema'] = normalizedSchema;
+    }
+
     final resp = await _client.post(
       _uri(path),
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        ...?headers,
-      },
+      headers: mergedHeaders,
       body: jsonEncode(body),
     );
 

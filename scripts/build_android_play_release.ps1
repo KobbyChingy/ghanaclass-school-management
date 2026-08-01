@@ -9,6 +9,8 @@ param(
 
   [string]$ConfigFile = '.\scripts\release.env',
 
+  [switch]$AllowLocalhostApiBaseUrl,
+
   [switch]$IncludeApk
 )
 
@@ -39,6 +41,31 @@ function Import-ReleaseConfig {
   return $values
 }
 
+function Assert-HostedApiBaseUrl {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$Value,
+
+    [switch]$AllowLocalhost
+  )
+
+  if ($AllowLocalhost) {
+    return
+  }
+
+  $trimmed = $Value.Trim()
+  [System.Uri]$uri = $null
+  if (-not [System.Uri]::TryCreate($trimmed, [System.UriKind]::Absolute, [ref]$uri)) {
+    throw "Invalid GHANACLASS_API_BASE_URL '$trimmed'. Use an absolute URL such as https://api.your-domain.com"
+  }
+
+  $apiHost = $uri.Host.ToLowerInvariant()
+  $localHosts = @('localhost', '127.0.0.1', '::1')
+  if ($localHosts -contains $apiHost) {
+    throw "Refusing production mobile build with local API URL '$trimmed'. Set GHANACLASS_API_BASE_URL to a hosted backend (or pass -AllowLocalhostApiBaseUrl for local-only testing)."
+  }
+}
+
 Push-Location (Join-Path $PSScriptRoot '..')
 try {
   $releaseConfig = Import-ReleaseConfig -Path $ConfigFile
@@ -59,6 +86,8 @@ try {
   if (-not $ApiBaseUrl) {
     throw 'Missing ApiBaseUrl. Pass -ApiBaseUrl or create scripts/release.env from scripts/release.env.example.'
   }
+
+  Assert-HostedApiBaseUrl -Value $ApiBaseUrl -AllowLocalhost:$AllowLocalhostApiBaseUrl
 
   $dartDefines = @(
     "--dart-define=GHANACLASS_API_BASE_URL=$ApiBaseUrl"

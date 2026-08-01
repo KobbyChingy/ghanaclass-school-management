@@ -291,20 +291,81 @@ class FinanceService {
         .toList(growable: false);
   }
 
+  Future<bool> hasPayrollRecordForStaff({
+    required int staffId,
+    required int month,
+    required int year,
+  }) async {
+    final existing = await (_database.select(_database.payrollRecords)
+          ..where((t) => t.staffId.equals(staffId) & t.month.equals(month) & t.year.equals(year)))
+        .getSingleOrNull();
+    return existing != null;
+  }
+
+  Future<List<StaffPayrollOwedRow>> getUnpaidPayroll(int month, int year) async {
+    final users = _database.users;
+    final salaries = _database.staffSalaries;
+    final staffWithSalaries = await (_database.select(users)
+          ..where((u) => u.isActive.equals(true)))
+        .get();
+
+    final owedRows = <StaffPayrollOwedRow>[];
+    for (final staff in staffWithSalaries) {
+      final salaryConfig = await getStaffSalary(staff.id);
+      if (salaryConfig == null || salaryConfig.baseSalary <= 0) continue;
+      final alreadyPaid = await hasPayrollRecordForStaff(staffId: staff.id, month: month, year: year);
+      if (alreadyPaid) continue;
+
+      double totalAllowances = 0;
+      if (salaryConfig.allowances != null) {
+        final List<dynamic> list = jsonDecode(salaryConfig.allowances!);
+        totalAllowances = list.fold(0.0, (sum, item) => sum + (item['amount'] ?? 0.0));
+      }
+
+      double totalDeductions = 0;
+      if (salaryConfig.deductions != null) {
+        final List<dynamic> list = jsonDecode(salaryConfig.deductions!);
+        totalDeductions = list.fold(0.0, (sum, item) => sum + (item['amount'] ?? 0.0));
+      }
+
+      final gross = salaryConfig.baseSalary + totalAllowances;
+      final net = gross - totalDeductions;
+      owedRows.add(
+        StaffPayrollOwedRow(
+          staff: staff,
+          grossSalary: gross,
+          netSalary: net,
+          totalAllowances: totalAllowances,
+          totalDeductions: totalDeductions,
+          month: month,
+          year: year,
+        ),
+      );
+    }
+
+    owedRows.sort((a, b) => b.netSalary.compareTo(a.netSalary));
+    return owedRows;
+  }
+
   Future<void> processPayroll({
     required int month,
     required int year,
     required int adminId,
+    int? staffId,
   }) async {
-    // 1. Get all staff (Teachers, Admin, etc. from Users table)
-    final allStaff = await _database.select(_database.users).get();
-    
-    // 2. For each staff, calculate net salary and insert record
+    final staffQuery = _database.select(_database.users);
+    if (staffId != null) {
+      staffQuery.where((t) => t.id.equals(staffId));
+    }
+    final allStaff = await staffQuery.get();
+
     for (final staff in allStaff) {
       final salaryConfig = await getStaffSalary(staff.id);
       if (salaryConfig == null || salaryConfig.baseSalary <= 0) continue;
 
-      // Parse allowances and deductions
+      final exists = await hasPayrollRecordForStaff(staffId: staff.id, month: month, year: year);
+      if (exists) continue;
+
       double totalAllowances = 0;
       if (salaryConfig.allowances != null) {
         final List<dynamic> list = jsonDecode(salaryConfig.allowances!);
@@ -362,6 +423,26 @@ class FinanceService {
       'netBalance': totalIncome - (totalPayroll + totalExpenses),
     };
   }
+}
+
+class StaffPayrollOwedRow {
+  final User staff;
+  final double grossSalary;
+  final double netSalary;
+  final double totalAllowances;
+  final double totalDeductions;
+  final int month;
+  final int year;
+
+  const StaffPayrollOwedRow({
+    required this.staff,
+    required this.grossSalary,
+    required this.netSalary,
+    required this.totalAllowances,
+    required this.totalDeductions,
+    required this.month,
+    required this.year,
+  });
 }
 
 class StudentFeesLedgerRow {

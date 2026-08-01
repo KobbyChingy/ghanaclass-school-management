@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: ghanaclass-backend
+    runtime: docker
+    rootDir: ./backend
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    autoDeployTrigger: commit
+    healthCheckPath: /
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true

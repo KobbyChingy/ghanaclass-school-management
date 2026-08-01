@@ -22,6 +22,7 @@ class OfflineConnectivityListener extends ConsumerStatefulWidget {
 
 class _OfflineConnectivityListenerState extends ConsumerState<OfflineConnectivityListener> {
   bool? _lastIsOnline;
+  DateTime _appStartTime = DateTime.now();
 
   @override
   Widget build(BuildContext context) {
@@ -42,7 +43,16 @@ class _OfflineConnectivityListenerState extends ConsumerState<OfflineConnectivit
       _lastIsOnline = isOnline;
 
       // Avoid spamming on first value.
-      if (last == null) return;
+      if (last == null) {
+        // Give connectivity_plus time to initialize properly (up to 2 seconds)
+        // This prevents false offline alerts on app startup
+        final timeSinceStart = DateTime.now().difference(_appStartTime);
+        if (timeSinceStart.inSeconds < 2 && !isOnline) {
+          // Ignore offline on first check if app just started
+          return;
+        }
+        return;
+      }
       if (last == isOnline) return;
       if (!shouldAlert) return;
       if (!mounted) return;
@@ -75,3 +85,4 @@ class _OfflineConnectivityListenerState extends ConsumerState<OfflineConnectivit
     return const SizedBox.shrink();
   }
 }
+

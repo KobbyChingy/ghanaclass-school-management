@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'tables.dart';
 import 'academic_tables.dart';
+import 'student_guardians_table.dart';
 import 'financial_tables.dart';
 import 'activity_tables.dart';
 import 'attendance_tables.dart';
@@ -40,6 +41,7 @@ part 'app_database.g.dart';
   Users,
   Sessions,
   Students,
+  StudentGuardians,
   StudentSubjectEnrollments,
   SchoolClasses,
   SchoolSubjects,
@@ -1342,6 +1344,121 @@ class AppDatabase extends _$AppDatabase {
 
       // 3) Finally, delete the subject itself.
       return (delete(schoolSubjects)..where((t) => t.id.equals(subjectId))).go();
+    });
+  }
+
+  /// Deletes a class and all known dependent rows in a single transaction.
+  ///
+  /// This prevents SQLite foreign key constraint failures when removing a
+  /// class that is referenced by students, attendance, assessments, etc.
+  Future<int> deleteClassCascade(int classId) async {
+    return transaction(() async {
+      Future<void> deleteRowsIfTableExists(
+        String tableName,
+        Future<void> Function() operation,
+      ) async {
+        if (!await _hasTable(tableName)) return;
+        await operation();
+      }
+
+      Future<void> updateRowsIfTableExists(
+        String tableName,
+        String columnName,
+        Future<void> Function() operation,
+      ) async {
+        if (!await _hasTable(tableName) || !await _hasColumn(tableName, columnName)) return;
+        await operation();
+      }
+
+      // 1) Dependent rows of assessments (StudentGrades)
+      await deleteRowsIfTableExists('assessments', () async {
+        final assessmentRows = await (select(assessments)..where((t) => t.classId.equals(classId))).get();
+        final assessmentIds = assessmentRows.map((e) => e.id).toList(growable: false);
+        if (assessmentIds.isNotEmpty) {
+          await deleteRowsIfTableExists('student_grades', () async {
+            await (delete(studentGrades)..where((t) => t.assessmentId.isIn(assessmentIds))).go();
+          });
+        }
+        await (delete(assessments)..where((t) => t.classId.equals(classId))).go();
+      });
+
+      // 2) Dependent rows of attendance (AttendanceRecords)
+      await deleteRowsIfTableExists('attendance_sessions', () async {
+        final attendanceSessionRows = await (select(attendanceSessions)..where((t) => t.classId.equals(classId))).get();
+        final sessionIds = attendanceSessionRows.map((e) => e.id).toList(growable: false);
+        if (sessionIds.isNotEmpty) {
+          await deleteRowsIfTableExists('attendance_records', () async {
+            await (delete(attendanceRecords)..where((t) => t.sessionId.isIn(sessionIds))).go();
+          });
+        }
+        await (delete(attendanceSessions)..where((t) => t.classId.equals(classId))).go();
+      });
+
+      // 3) Direct non-nullable references (delete)
+      await deleteRowsIfTableExists('student_subject_enrollments', () async {
+        await (delete(studentSubjectEnrollments)..where((t) => t.classId.equals(classId))).go();
+      });
+      await deleteRowsIfTableExists('class_subject_offerings', () async {
+        await (delete(classSubjectOfferings)..where((t) => t.classId.equals(classId))).go();
+      });
+      await deleteRowsIfTableExists('class_subject_teachers', () async {
+        await (delete(classSubjectTeachers)..where((t) => t.classId.equals(classId))).go();
+      });
+      await deleteRowsIfTableExists('canteen_portion_plans', () async {
+        await (delete(canteenPortionPlans)..where((t) => t.classId.equals(classId))).go();
+      });
+      await deleteRowsIfTableExists('term_results', () async {
+        await (delete(termResults)..where((t) => t.classId.equals(classId))).go();
+      });
+      await deleteRowsIfTableExists('grading_scales', () async {
+        await (delete(gradingScales)..where((t) => t.classId.equals(classId))).go();
+      });
+
+      // 4) Nullable references (update to NULL)
+      await updateRowsIfTableExists('students', 'class_id', () async {
+        await (update(students)..where((t) => t.classId.equals(classId)))
+            .write(const StudentsCompanion(classId: Value(null)));
+      });
+      await updateRowsIfTableExists('science_lab_bookings', 'class_id', () async {
+        await (update(scienceLabBookings)..where((t) => t.classId.equals(classId)))
+            .write(const ScienceLabBookingsCompanion(classId: Value(null)));
+      });
+      await updateRowsIfTableExists('science_lab_experiment_requests', 'class_id', () async {
+        await (update(scienceLabExperimentRequests)..where((t) => t.classId.equals(classId)))
+            .write(const ScienceLabExperimentRequestsCompanion(classId: Value(null)));
+      });
+      await updateRowsIfTableExists('science_lab_usage_sessions', 'class_id', () async {
+        await (update(scienceLabUsageSessions)..where((t) => t.classId.equals(classId)))
+            .write(const ScienceLabUsageSessionsCompanion(classId: Value(null)));
+      });
+      await updateRowsIfTableExists('exam_papers', 'class_id', () async {
+        await (update(examPapers)..where((t) => t.classId.equals(classId)))
+            .write(const ExamPapersCompanion(classId: Value(null)));
+      });
+      await updateRowsIfTableExists('lesson_notes', 'class_id', () async {
+        await (update(lessonNotes)..where((t) => t.classId.equals(classId)))
+            .write(const LessonNotesCompanion(classId: Value(null)));
+      });
+      await updateRowsIfTableExists('ict_lab_bookings', 'class_id', () async {
+        await (update(ictLabBookings)..where((t) => t.classId.equals(classId)))
+            .write(const IctLabBookingsCompanion(classId: Value(null)));
+      });
+      await updateRowsIfTableExists('ict_lab_usage_sessions', 'class_id', () async {
+        await (update(ictLabUsageSessions)..where((t) => t.classId.equals(classId)))
+            .write(const IctLabUsageSessionsCompanion(classId: Value(null)));
+      });
+      await updateRowsIfTableExists('fee_structures', 'class_id', () async {
+        await (update(feeStructures)..where((t) => t.classId.equals(classId)))
+            .write(const FeeStructuresCompanion(classId: Value(null)));
+      });
+
+      // 5) Legacy classes table clean up
+      if (await _hasTable('classes')) {
+        await customStatement('DELETE FROM classes WHERE id = ?', [classId]);
+      }
+
+      // 6) Finally, delete the class itself
+      return (delete(schoolClasses)..where((t) => t.id.equals(classId))).go();
     });
   }
 

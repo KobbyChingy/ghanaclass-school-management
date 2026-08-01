@@ -1,0 +1,77 @@
+workflows:
+  ios-app-store-release:
+    name: iOS App Store Release Build
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+
+    environment:
+      ios_signing:
+        provisioning_profiles:
+          - name: GhanaClass Release Profile
+      xcode: latest
+      groups:
+        - ios_secrets
+
+    triggering:
+      events:
+        - push
+        - tag
+      branch:
+        - master
+        - main
+        - release/*
+      tag:
+        - v*
+
+    scripts:
+      - name: Get Flutter packages
+        script: |
+          flutter pub get
+
+      - name: Build iOS IPA
+        script: |
+          flutter build ipa \
+            --release \
+            --dart-define=GHANACLASS_API_BASE_URL=$GHANACLASS_API_BASE_URL \
+            --dart-define=GHANACLASS_TENANT_SCHEMA=$GHANACLASS_TENANT_SCHEMA \
+            --dart-define=GHANACLASS_SUPABASE_URL=$GHANACLASS_SUPABASE_URL \
+            --dart-define=GHANACLASS_SUPABASE_PUBLISHABLE_KEY=$GHANACLASS_SUPABASE_PUBLISHABLE_KEY \
+            --export-method=app-store
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - build/ios/ipa/*.xcarchive
+
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        submit_to_app_store: false
+
+  ios-simulator-debug:
+    name: iOS Simulator Debug Build
+    instance_type: mac_mini_m2
+    max_build_duration: 30
+
+    environment:
+      xcode: latest
+
+    triggering:
+      events:
+        - pull_request
+
+    scripts:
+      - name: Get Flutter packages
+        script: flutter pub get
+
+      - name: Build for iOS Simulator
+        script: |
+          flutter build ios \
+            --simulator \
+            --dart-define=GHANACLASS_API_BASE_URL=$GHANACLASS_API_BASE_URL \
+            --dart-define=GHANACLASS_TENANT_SCHEMA=$GHANACLASS_TENANT_SCHEMA \
+            --dart-define=GHANACLASS_SUPABASE_URL=$GHANACLASS_SUPABASE_URL \
+            --dart-define=GHANACLASS_SUPABASE_PUBLISHABLE_KEY=$GHANACLASS_SUPABASE_PUBLISHABLE_KEY
+
+    artifacts:
+      - build/ios/Release-iphonesimulator/*.app

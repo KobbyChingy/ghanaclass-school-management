@@ -11,6 +11,16 @@ For production distribution, keep this split:
 
 Do not point the Flutter app directly at the Supabase dashboard URL for app business operations. Production builds should point `GHANACLASS_API_BASE_URL` at your deployed backend API.
 
+## Cross-Platform Login Requirement
+
+If you want an account created on one device to login on both Android and Windows:
+
+- both platform builds must use the same hosted `GHANACLASS_API_BASE_URL`
+- do not use `localhost` for store/distributed builds
+- both builds must target the same production backend + database environment
+
+This repo's release scripts now fail fast when `GHANACLASS_API_BASE_URL` is localhost unless you explicitly opt in for local testing.
+
 ## Required Release Values
 
 Every store build should set these compile-time values:
@@ -25,6 +35,21 @@ To avoid retyping these values for every store build, copy `scripts/release.env.
 ## Windows Desktop / Microsoft Store
 
 Use MSIX for Microsoft Store or enterprise-style Windows deployment.
+
+Before running the store build helper, copy `scripts/msix.release.env.example`
+to `scripts/msix.release.env` and fill in your production values:
+
+- `MSIX_DISPLAY_NAME`
+- `MSIX_PUBLISHER_DISPLAY_NAME`
+- `MSIX_IDENTITY_NAME`
+- `MSIX_PUBLISHER`
+- `MSIX_VERSION`
+- `MSIX_CERTIFICATE_PATH`
+- `MSIX_CERTIFICATE_PASSWORD`
+
+The store build helper now patches `msix_config` in memory from that file,
+packages the app, and restores `pubspec.yaml` afterward. It will refuse to use
+the checked-in development PFX for store builds.
 
 Helper script:
 
@@ -45,7 +70,7 @@ For EXE installer distribution outside the Store:
 
 Before publishing to Microsoft Store:
 
-- replace the development MSIX certificate settings in `pubspec.yaml`
+- create `scripts/msix.release.env` from the example file and point it at your real signing certificate
 - use your real publisher identity and signing certificate
 - verify app name, icons, version, and package identity
 

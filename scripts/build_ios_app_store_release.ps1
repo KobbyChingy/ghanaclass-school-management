@@ -1,0 +1,109 @@
+param(
+  [string]$ApiBaseUrl,
+
+  [string]$TenantSchema = 'school_demo',
+
+  [string]$SupabaseUrl = 'https://eqrkfynzaznoarcziepm.supabase.co',
+
+  [string]$SupabasePublishableKey = 'sb_publishable_7oThgrzPu25cDp-4i_7I-w_y8YJ7H0f',
+
+  [string]$ConfigFile = '.\scripts\release.env',
+
+  [switch]$AllowLocalhostApiBaseUrl,
+
+  [switch]$IncludeSimulator
+)
+
+$ErrorActionPreference = 'Stop'
+
+function Import-ReleaseConfig {
+  param([string]$Path)
+
+  if (-not (Test-Path $Path)) {
+    return @{}
+  }
+
+  $values = @{}
+  foreach ($line in Get-Content -Path $Path) {
+    $trimmed = $line.Trim()
+    if (-not $trimmed -or $trimmed.StartsWith('#')) {
+      continue
+    }
+
+    $parts = $trimmed -split '=', 2
+    if ($parts.Count -ne 2) {
+      continue
+    }
+
+    $values[$parts[0].Trim()] = $parts[1].Trim()
+  }
+
+  return $values
+}
+
+function Assert-HostedApiBaseUrl {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$Value,
+
+    [switch]$AllowLocalhost
+  )
+
+  if ($AllowLocalhost) {
+    return
+  }
+
+  $trimmed = $Value.Trim()
+  [System.Uri]$uri = $null
+  if (-not [System.Uri]::TryCreate($trimmed, [System.UriKind]::Absolute, [ref]$uri)) {
+    throw "Invalid GHANACLASS_API_BASE_URL '$trimmed'. Use an absolute URL such as https://api.your-domain.com"
+  }
+
+  $apiHost = $uri.Host.ToLowerInvariant()
+  $localHosts = @('localhost', '127.0.0.1', '::1')
+  if ($localHosts -contains $apiHost) {
+    throw "Refusing production mobile build with local API URL '$trimmed'. Set GHANACLASS_API_BASE_URL to a hosted backend (or pass -AllowLocalhostApiBaseUrl for local-only testing)."
+  }
+}
+
+Push-Location (Join-Path $PSScriptRoot '..')
+try {
+  $releaseConfig = Import-ReleaseConfig -Path $ConfigFile
+
+  if (-not $ApiBaseUrl) {
+    $ApiBaseUrl = $releaseConfig['GHANACLASS_API_BASE_URL']
+  }
+  if ($releaseConfig.ContainsKey('GHANACLASS_TENANT_SCHEMA')) {
+    $TenantSchema = $releaseConfig['GHANACLASS_TENANT_SCHEMA']
+  }
+  if ($releaseConfig.ContainsKey('GHANACLASS_SUPABASE_URL')) {
+    $SupabaseUrl = $releaseConfig['GHANACLASS_SUPABASE_URL']
+  }
+  if ($releaseConfig.ContainsKey('GHANACLASS_SUPABASE_PUBLISHABLE_KEY')) {
+    $SupabasePublishableKey = $releaseConfig['GHANACLASS_SUPABASE_PUBLISHABLE_KEY']
+  }
+
+  if (-not $ApiBaseUrl) {
+    throw 'Missing ApiBaseUrl. Pass -ApiBaseUrl or create scripts/release.env from scripts/release.env.example.'
+  }
+
+  Assert-HostedApiBaseUrl -Value $ApiBaseUrl -AllowLocalhost:$AllowLocalhostApiBaseUrl
+
+  $dartDefines = @(
+    "--dart-define=GHANACLASS_API_BASE_URL=$ApiBaseUrl"
+    "--dart-define=GHANACLASS_TENANT_SCHEMA=$TenantSchema"
+    "--dart-define=GHANACLASS_SUPABASE_URL=$SupabaseUrl"
+    "--dart-define=GHANACLASS_SUPABASE_PUBLISHABLE_KEY=$SupabasePublishableKey"
+  )
+
+  Write-Host "Building iOS IPA for App Store/TestFlight..."
+  flutter build ipa --release @dartDefines
+
+  if ($IncludeSimulator) {
+    Write-Host "Building iOS app for Simulator..."
+    flutter build ios --simulator @dartDefines
+  }
+}
+finally {
+  Pop-Location
+}

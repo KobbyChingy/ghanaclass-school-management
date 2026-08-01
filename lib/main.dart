@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:ui';
 
@@ -5,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:window_manager/window_manager.dart';
 import 'core/config/supabase_config.dart';
 import 'core/constants/theme.dart';
@@ -15,17 +17,7 @@ import 'core/services/supabase_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  if (SupabaseConfig.isConfigured && !SupabaseService.isInitialized) {
-    try {
-      await SupabaseService.initialize(
-        url: SupabaseConfig.url,
-        anonKey: SupabaseConfig.publishableKey,
-      );
-    } catch (error, stack) {
-      unhandledErrorNotifier.value = 'Supabase initialization failed\n$error\n$stack';
-    }
-  }
+  GoogleFonts.config.allowRuntimeFetching = false;
 
   FlutterError.onError = (details) {
     FlutterError.presentError(details);
@@ -50,7 +42,7 @@ void main() async {
     return false;
   };
 
-  if (!kIsWeb && defaultTargetPlatform != TargetPlatform.windows) {
+  if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
     await windowManager.ensureInitialized();
 
     const windowOptions = WindowOptions(
@@ -74,6 +66,23 @@ void main() async {
       ),
     ),
   );
+
+  unawaited(_initializeSupabase());
+}
+
+Future<void> _initializeSupabase() async {
+  if (!SupabaseConfig.isConfigured || SupabaseService.isInitialized) {
+    return;
+  }
+
+  try {
+    await SupabaseService.initialize(
+      url: SupabaseConfig.url,
+      anonKey: SupabaseConfig.publishableKey,
+    );
+  } catch (error, stack) {
+    unhandledErrorNotifier.value = 'Supabase initialization failed\n$error\n$stack';
+  }
 }
 
 bool _isIgnorableVmTempDeleteError(Object error, StackTrace stack) {
@@ -159,7 +168,7 @@ class _UnhandledErrorOverlay extends StatelessWidget {
                           ConstrainedBox(
                             constraints: const BoxConstraints(maxHeight: 180),
                             child: SingleChildScrollView(
-                              child: SelectableText(preview),
+                              child: Text(preview),
                             ),
                           ),
                           const SizedBox(height: 10),

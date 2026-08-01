@@ -20,6 +20,15 @@ class PromotionService {
             classId: Value(toClassId),
             updatedAt: Value(DateTime.now()),
           ));
+
+        if (updated > 0) {
+          await _database.syncStudentEnrollmentsAfterClassChange(
+            studentId: id,
+            oldClassId: fromClassId,
+            newClassId: toClassId,
+          );
+        }
+
         count += updated;
       }
       return count;

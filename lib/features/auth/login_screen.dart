@@ -87,6 +87,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       return 'Connection timed out. Please check your internet and try again.';
     }
 
+    if (normalized.contains('database error') ||
+        normalized.contains('database connection failed') ||
+        normalized.contains('enotfound') ||
+        normalized.contains('could not translate host name')) {
+      return 'The backend is unable to connect to its database. Please verify the server configuration and try again.';
+    }
+
     return msg;
   }
 
@@ -164,24 +171,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final email = _emailController.text.trim();
       final password = _passwordController.text;
 
-      // If Server Mode is enabled, avoid waiting on a network request when offline.
-      final isServerEnabled = await ref.read(serverEnabledProvider.future);
-      final isOnline = ref.read(isOnlineProvider);
-      if (isServerEnabled && !isOnline) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('You are offline. Please connect to an internet source and try again.'),
-              backgroundColor: Colors.orange,
-            ),
-          );
-        }
-        return;
-      }
-
       final authService = ref.read(authServiceProvider);
+      final isServerEnabled = await ref.read(serverEnabledProvider.future);
 
-        final timeout = isServerEnabled
+      final timeout = isServerEnabled
           ? _remoteLoginTimeout
           : _localLoginTimeout;
 
@@ -490,9 +483,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                         ),
                                         child: ClipRRect(
                                           borderRadius: BorderRadius.circular(10),
-                                          child: Image.network(
-                                            'https://pub-141831e61e69445289222976a15b6fb3.r2.dev/Image_to_url_V2/OmniWeave-Logo-imagetourl.cloud-1768845152819-xd0lbd.jpeg',
-                                            fit: BoxFit.contain,
+                                          child: Container(
+                                            color: const Color(0xFFF3F6FC),
+                                            alignment: Alignment.center,
+                                            child: const Icon(
+                                              Icons.school_rounded,
+                                              size: 34,
+                                              color: Color(0xFF7B8AA6),
+                                            ),
                                           ),
                                         ),
                                       ),
@@ -721,12 +719,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                                 height: 18,
                                                 decoration: BoxDecoration(
                                                   borderRadius: BorderRadius.circular(6),
-                                                  image: const DecorationImage(
-                                                    image: NetworkImage(
-                                                      'https://pub-141831e61e69445289222976a15b6fb3.r2.dev/Image_to_url_V2/OmniWeave-Logo-imagetourl.cloud-1768845152819-xd0lbd.jpeg',
-                                                    ),
-                                                    fit: BoxFit.cover,
-                                                  ),
+                                                  color: const Color(0xFFF3F6FC),
+                                                ),
+                                                alignment: Alignment.center,
+                                                child: const Icon(
+                                                  Icons.school_rounded,
+                                                  size: 12,
+                                                  color: Color(0xFF7B8AA6),
                                                 ),
                                               ),
                                               const SizedBox(width: 8),

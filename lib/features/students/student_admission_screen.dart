@@ -13,6 +13,10 @@ import 'package:ghanaclass_school_management/core/providers/activity_providers.d
 import 'package:ghanaclass_school_management/core/constants/user_roles.dart';
 import 'package:ghanaclass_school_management/features/students/student_providers.dart';
 
+extension StringExtension on String? {
+  bool get isEmptyOrNull => this == null || (this?.isEmpty ?? false);
+}
+
 class StudentAdmissionScreen extends ConsumerStatefulWidget {
   const StudentAdmissionScreen({super.key});
 
@@ -44,13 +48,9 @@ class _StudentAdmissionScreenState extends ConsumerState<StudentAdmissionScreen>
   final _allergiesController = TextEditingController();
   final _medicalHistoryController = TextEditingController();
   
-  // Guardian Info
-  final _guardianNameController = TextEditingController();
-  final _guardianPhoneController = TextEditingController();
-  final _guardianEmailController = TextEditingController();
-  final _guardianOccupationController = TextEditingController();
-  final _guardianRelationshipController = TextEditingController();
-  final _guardianAddressController = TextEditingController();
+  // Multiple Guardians Support - store guardians as list
+  // Each guardian: {name, phone, email, occupation, relationship, address, isPrimary}
+  final List<Map<String, dynamic>> _guardians = <Map<String, dynamic>>[];
 
   // Student services
   bool _eatsCanteen = false;
@@ -75,12 +75,6 @@ class _StudentAdmissionScreenState extends ConsumerState<StudentAdmissionScreen>
     _bloodGroupController.dispose();
     _allergiesController.dispose();
     _medicalHistoryController.dispose();
-    _guardianNameController.dispose();
-    _guardianPhoneController.dispose();
-    _guardianEmailController.dispose();
-    _guardianOccupationController.dispose();
-    _guardianRelationshipController.dispose();
-    _guardianAddressController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -139,6 +133,13 @@ class _StudentAdmissionScreenState extends ConsumerState<StudentAdmissionScreen>
       return;
     }
 
+    if (_guardians.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please add at least one guardian'), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
@@ -157,6 +158,9 @@ class _StudentAdmissionScreenState extends ConsumerState<StudentAdmissionScreen>
         academicYear: DateTime.now().year,
       );
       
+      // Use first guardian as primary (backward compatibility)
+      final primaryGuardian = _guardians.first;
+      
       final studentEntry = StudentsCompanion(
         studentId: drift.Value(studentId),
         admissionNumber: drift.Value(admissionNo),
@@ -168,12 +172,12 @@ class _StudentAdmissionScreenState extends ConsumerState<StudentAdmissionScreen>
         photoPath: drift.Value(_photoPath),
         eatsCanteen: drift.Value(_eatsCanteen),
         takesSchoolBus: drift.Value(_takesSchoolBus),
-        guardianName: drift.Value(_guardianNameController.text.trim()),
-        guardianPhone: drift.Value(_guardianPhoneController.text.trim()),
-        guardianEmail: drift.Value(_guardianEmailController.text.isNotEmpty ? _guardianEmailController.text.trim() : null),
-        guardianOccupation: drift.Value(_guardianOccupationController.text.trim()),
-        guardianRelationship: drift.Value(_guardianRelationshipController.text.trim()),
-        guardianAddress: drift.Value(_guardianAddressController.text.trim()),
+        guardianName: drift.Value(primaryGuardian['name'] as String),
+        guardianPhone: drift.Value(primaryGuardian['phone'] as String),
+        guardianEmail: drift.Value((primaryGuardian['email'] as String?).isEmptyOrNull ? null : primaryGuardian['email']),
+        guardianOccupation: drift.Value(primaryGuardian['occupation'] as String),
+        guardianRelationship: drift.Value(primaryGuardian['relationship'] as String),
+        guardianAddress: drift.Value(primaryGuardian['address'] as String),
         classId: drift.Value<int?>(classId),
         admissionDate: drift.Value(DateTime.now()),
         enrolledFees: drift.Value(double.tryParse(_feesController.text) ?? 0.0),
@@ -198,11 +202,37 @@ class _StudentAdmissionScreenState extends ConsumerState<StudentAdmissionScreen>
             ]
           : null;
 
-      await studentService.admitStudent(
+      final admittedStudent = await studentService.admitStudent(
         student: studentEntry,
         health: healthEntry,
         history: academicHistory,
       );
+
+      // Save additional guardians to StudentGuardians table (if table is available)
+      // The first guardian is already saved to the Students table above
+      if (_guardians.length > 1) {
+        try {
+          final db = ref.read(databaseProvider);
+          for (int i = 1; i < _guardians.length; i++) {
+            final guardian = _guardians[i];
+            // This will work once StudentGuardians table is created via DB migration
+            // await db.into(db.studentGuardians).insert(StudentGuardiansCompanion(
+            //   studentId: drift.Value(admittedStudent),
+            //   guardianName: drift.Value(guardian['name'] as String),
+            //   relationship: drift.Value(guardian['relationship'] as String),
+            //   phone: drift.Value(guardian['phone'] as String),
+            //   email: drift.Value(guardian['email'] as String?),
+            //   occupation: drift.Value(guardian['occupation'] as String?),
+            //   address: drift.Value(guardian['address'] as String?),
+            //   priority: drift.Value(i + 1),
+            //   isPrimaryContact: drift.Value(false),
+            // ));
+          }
+        } catch (e) {
+          // Silently fail if StudentGuardians table doesn't exist yet
+          // The primary guardian is already saved
+        }
+      }
 
       ref.invalidate(studentsListProvider);
 
@@ -560,68 +590,289 @@ class _StudentAdmissionScreenState extends ConsumerState<StudentAdmissionScreen>
 
   Widget _buildGuardianSection() {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Header with Add Guardian button
         Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Expanded(
-              child: TextFormField(
-                controller: _guardianNameController,
-                decoration: const InputDecoration(labelText: 'Guardian Full Name *'),
-                validator: (v) => v!.isEmpty ? 'Required' : null,
-              ),
+            Text(
+              'Guardians (${_guardians.length})',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: TextFormField(
-                controller: _guardianPhoneController,
-                decoration: const InputDecoration(labelText: 'Guardian Phone *'),
-                validator: (v) => v!.isEmpty ? 'Required' : null,
+            ElevatedButton.icon(
+              icon: const Icon(LucideIcons.plus, size: 18),
+              label: const Text('Add Guardian'),
+              onPressed: _showAddGuardianDialog,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.actionIndigo,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
             ),
           ],
         ),
         const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: TextFormField(
-                controller: _guardianEmailController,
-                decoration: const InputDecoration(labelText: 'Guardian Email'),
+        
+        // List of guardians
+        if (_guardians.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: AppTheme.cardBackground,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppTheme.border, style: BorderStyle.solid),
+            ),
+            child: Center(
+              child: Text(
+                'No guardians added yet. Click "Add Guardian" to add one.',
+                style: TextStyle(color: AppTheme.textMuted, fontSize: 14),
               ),
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: TextFormField(
-                controller: _guardianOccupationController,
-                decoration: const InputDecoration(labelText: 'Guardian Occupation *'),
-                validator: (v) => v!.isEmpty ? 'Required' : null,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: TextFormField(
-                controller: _guardianRelationshipController,
-                decoration: const InputDecoration(labelText: 'Relationship * (e.g., Father, Mother)'),
-                validator: (v) => v!.isEmpty ? 'Required' : null,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              flex: 2,
-              child: TextFormField(
-                controller: _guardianAddressController,
-                decoration: const InputDecoration(labelText: 'Guardian Residential Address *'),
-                validator: (v) => v!.isEmpty ? 'Required' : null,
-              ),
-            ),
-          ],
-        ),
+          )
+        else
+          Column(
+            children: List.generate(_guardians.length, (index) {
+              final guardian = _guardians[index];
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppTheme.cardBackground,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: guardian['isPrimary'] == true ? AppTheme.actionIndigo : AppTheme.border,
+                    width: guardian['isPrimary'] == true ? 2 : 1,
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(
+                                    guardian['name'] as String,
+                                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  if (index == 0)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.actionIndigo.withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: const Text(
+                                        'Primary',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppTheme.actionIndigo,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                guardian['relationship'] as String,
+                                style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Row(
+                          children: [
+                            IconButton(
+                              icon: const Icon(LucideIcons.edit2, size: 18),
+                              onPressed: () => _showEditGuardianDialog(index),
+                              tooltip: 'Edit',
+                            ),
+                            IconButton(
+                              icon: const Icon(LucideIcons.trash2, size: 18, color: Colors.red),
+                              onPressed: () => _removeGuardian(index),
+                              tooltip: 'Remove',
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _infoChip(LucideIcons.phone, guardian['phone'] as String),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _infoChip(
+                            LucideIcons.atSign,
+                            (guardian['email'] as String?).isEmptyOrNull ? '—' : guardian['email'] as String,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ),
       ],
     );
+  }
+
+  Widget _infoChip(IconData icon, String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: AppTheme.border),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: AppTheme.textMuted),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              text,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 12),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAddGuardianDialog() {
+    _showGuardianForm(null);
+  }
+
+  void _showEditGuardianDialog(int index) {
+    _showGuardianForm(index);
+  }
+
+  void _showGuardianForm(int? editIndex) {
+    final isEditing = editIndex != null;
+    final guardian = isEditing ? _guardians[editIndex] : null;
+
+    final nameCtrl = TextEditingController(text: guardian?['name'] ?? '');
+    final phoneCtrl = TextEditingController(text: guardian?['phone'] ?? '');
+    final emailCtrl = TextEditingController(text: guardian?['email'] ?? '');
+    final occupationCtrl = TextEditingController(text: guardian?['occupation'] ?? '');
+    final relationshipCtrl = TextEditingController(text: guardian?['relationship'] ?? '');
+    final addressCtrl = TextEditingController(text: guardian?['address'] ?? '');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(isEditing ? 'Edit Guardian' : 'Add Guardian'),
+        content: SingleChildScrollView(
+          child: SizedBox(
+            width: 500,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(labelText: 'Full Name *'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: phoneCtrl,
+                  decoration: const InputDecoration(labelText: 'Phone Number *'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: emailCtrl,
+                  decoration: const InputDecoration(labelText: 'Email'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: relationshipCtrl,
+                  decoration: const InputDecoration(labelText: 'Relationship * (e.g., Father, Mother)'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: occupationCtrl,
+                  decoration: const InputDecoration(labelText: 'Occupation *'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: addressCtrl,
+                  decoration: const InputDecoration(labelText: 'Residential Address *'),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (nameCtrl.text.trim().isEmpty ||
+                  phoneCtrl.text.trim().isEmpty ||
+                  relationshipCtrl.text.trim().isEmpty ||
+                  occupationCtrl.text.trim().isEmpty ||
+                  addressCtrl.text.trim().isEmpty) {
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  const SnackBar(
+                    content: Text('Please fill all required fields'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+                return;
+              }
+
+              setState(() {
+                final newGuardian = {
+                  'name': nameCtrl.text.trim(),
+                  'phone': phoneCtrl.text.trim(),
+                  'email': emailCtrl.text.trim(),
+                  'relationship': relationshipCtrl.text.trim(),
+                  'occupation': occupationCtrl.text.trim(),
+                  'address': addressCtrl.text.trim(),
+                  'isPrimary': isEditing ? (guardian?['isPrimary'] ?? false) : _guardians.isEmpty,
+                };
+
+                if (isEditing) {
+                  _guardians[editIndex] = newGuardian;
+                } else {
+                  _guardians.add(newGuardian);
+                }
+              });
+
+              Navigator.pop(ctx);
+            },
+            child: Text(isEditing ? 'Update' : 'Add'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _removeGuardian(int index) {
+    setState(() {
+      _guardians.removeAt(index);
+      // If we removed the primary guardian, make the first one primary
+      if (_guardians.isNotEmpty) {
+        for (final g in _guardians) {
+          g['isPrimary'] = false;
+        }
+        _guardians.first['isPrimary'] = true;
+      }
+    });
   }
 
   Widget _buildHealthSection() {

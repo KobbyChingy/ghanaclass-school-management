@@ -46,9 +46,7 @@ class AcademicService {
   }
 
   Future<int> deleteClass(int id) async {
-    return await (_database.delete(_database.schoolClasses)
-          ..where((t) => t.id.equals(id)))
-        .go();
+    return await _database.deleteClassCascade(id);
   }
 
   // Subject Methods

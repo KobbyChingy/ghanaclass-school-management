@@ -177,6 +177,16 @@ class MainLayout extends ConsumerWidget {
             route: '/director/expenses',
           ),
           NavigationItem(
+            icon: LucideIcons.bookOpen,
+            label: 'Fees Ledger',
+            route: '/finance/fees',
+          ),
+          NavigationItem(
+            icon: LucideIcons.wallet,
+            label: 'Payroll',
+            route: '/finance/payroll',
+          ),
+          NavigationItem(
             icon: LucideIcons.lineChart,
             label: 'Analytics',
             route: '/director/analytics',
@@ -598,12 +608,13 @@ class MainLayout extends ConsumerWidget {
                         height: 18,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          image: const DecorationImage(
-                            image: NetworkImage(
-                              'https://pub-141831e61e69445289222976a15b6fb3.r2.dev/Image_to_url_V2/OmniWeave-Logo-imagetourl.cloud-1768845152819-xd0lbd.jpeg',
-                            ),
-                            fit: BoxFit.cover,
-                          ),
+                          color: Colors.white.withValues(alpha: 0.12),
+                        ),
+                        alignment: Alignment.center,
+                        child: const Icon(
+                          Icons.school_rounded,
+                          size: 12,
+                          color: Colors.white70,
                         ),
                       ),
                       const SizedBox(width: 8),

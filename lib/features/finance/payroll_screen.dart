@@ -87,22 +87,73 @@ class _PayrollScreenState extends ConsumerState<PayrollScreen> with SingleTicker
 
   Widget _buildCurrentMonthTab() {
     final staffAsync = ref.watch(teachersProvider); // Using teachers for now as staff
+    final owedAsync = ref.watch(unpaidPayrollProvider((month: _selectedMonth, year: _selectedYear)));
 
+    final currentUser = ref.watch(currentUserProvider);
     return staffAsync.when(
       data: (staffList) {
         return Column(
           children: [
             Padding(
               padding: const EdgeInsets.all(24.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text('Manage staff salaries and process payroll for this month.', style: TextStyle(color: AppTheme.textMuted)),
-                  ElevatedButton.icon(
-                    onPressed: () => _processPayrollConfirm(context),
-                    icon: const Icon(LucideIcons.play, size: 18),
-                    label: const Text('Process Monthly Payroll'),
-                    style: ElevatedButton.styleFrom(backgroundColor: AppTheme.success, foregroundColor: Colors.white),
+                  Text('Manage staff salaries and process payroll for this month.', style: TextStyle(color: AppTheme.textMuted)),
+                  const SizedBox(height: 16),
+                  owedAsync.when(
+                    data: (owedRows) {
+                      final totalOwed = owedRows.fold<double>(0, (sum, row) => sum + row.netSalary);
+                      final staffCount = owedRows.length;
+                      return Card(
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text('Payroll Owed', style: TextStyle(fontWeight: FontWeight.bold)),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      staffCount > 0
+                                          ? '$staffCount staff members are still owed payroll for ${DateFormat('MMMM yyyy').format(DateTime(2024, _selectedMonth))}.'
+                                          : 'All staff payroll has been processed for the selected month.',
+                                      style: TextStyle(color: AppTheme.textMuted),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text('GHS ${totalOwed.toStringAsFixed(2)}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                                  Text('Owed amount', style: TextStyle(color: AppTheme.textMuted)),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                    loading: () => const Center(child: CircularProgressIndicator()),
+                    error: (e, s) => Text('Could not load owed payroll: $e', style: const TextStyle(color: Colors.red)),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const SizedBox.shrink(),
+                      ElevatedButton.icon(
+                        onPressed: () => _processPayrollConfirm(context),
+                        icon: const Icon(LucideIcons.play, size: 18),
+                        label: const Text('Process Monthly Payroll'),
+                        style: ElevatedButton.styleFrom(backgroundColor: AppTheme.success, foregroundColor: Colors.white),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -113,7 +164,16 @@ class _PayrollScreenState extends ConsumerState<PayrollScreen> with SingleTicker
                 itemCount: staffList.length,
                 itemBuilder: (context, index) {
                   final staff = staffList[index];
-                  return _StaffSalaryCard(staff: staff);
+                  return _StaffSalaryCard(
+                    staff: staff,
+                    month: _selectedMonth,
+                    year: _selectedYear,
+                    adminId: currentUser?.id,
+                    onPayrollProcessed: () {
+                      ref.invalidate(payrollHistoryProvider((month: _selectedMonth, year: _selectedYear)));
+                      ref.invalidate(unpaidPayrollProvider((month: _selectedMonth, year: _selectedYear)));
+                    },
+                  );
                 },
               ),
             ),
@@ -347,7 +407,7 @@ class _PayrollScreenState extends ConsumerState<PayrollScreen> with SingleTicker
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Process Payroll'),
-        content: Text('Are you sure you want to generate payroll records for ${DateFormat('MMMM').format(DateTime(2024, _selectedMonth))} $_selectedYear? This will create payment logs for all eligible staff.'),
+        content: Text('Are you sure you want to generate payroll records for ${DateFormat('MMMM').format(DateTime(_selectedYear, _selectedMonth))} $_selectedYear? This will create payment logs for all eligible staff.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           ElevatedButton(
@@ -360,7 +420,8 @@ class _PayrollScreenState extends ConsumerState<PayrollScreen> with SingleTicker
               );
               if (context.mounted) {
                 Navigator.pop(context);
-                ref.invalidate(payrollHistoryProvider);
+                ref.invalidate(payrollHistoryProvider((month: _selectedMonth, year: _selectedYear)));
+                ref.invalidate(unpaidPayrollProvider((month: _selectedMonth, year: _selectedYear)));
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Payroll processed successfully!')));
               }
             },
@@ -806,29 +867,77 @@ class _MetricTile extends StatelessWidget {
   }
 }
 
-class _StaffSalaryCard extends ConsumerWidget {
+class _StaffSalaryCard extends ConsumerStatefulWidget {
   final User staff;
-  const _StaffSalaryCard({required this.staff});
+  final int month;
+  final int year;
+  final int? adminId;
+  final VoidCallback onPayrollProcessed;
+
+  const _StaffSalaryCard({
+    required this.staff,
+    required this.month,
+    required this.year,
+    required this.adminId,
+    required this.onPayrollProcessed,
+  });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final salaryAsync = ref.watch(staffSalaryProvider(staff.id));
+  ConsumerState<_StaffSalaryCard> createState() => _StaffSalaryCardState();
+}
+
+class _StaffSalaryCardState extends ConsumerState<_StaffSalaryCard> {
+  bool _isPaying = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final salaryAsync = ref.watch(staffSalaryProvider(widget.staff.id));
+    final salary = salaryAsync.when(
+      data: (s) => s,
+      loading: () => null,
+      error: (_, __) => null,
+    );
+    final payEnabled = widget.adminId != null && salary != null && salary.baseSalary > 0;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        leading: CircleAvatar(child: Text(staff.fullName[0].toUpperCase())),
-        title: Text(staff.fullName),
-        subtitle: salaryAsync.when(
-          data: (s) => Text(s == null || s.baseSalary == 0 
-            ? 'Salary not configured' 
-            : 'Base: GH₵ ${s.baseSalary.toStringAsFixed(2)}'),
-          loading: () => const Text('Loading...'),
-          error: (error, stackTrace) => const Text('Error loading salary'),
-        ),
-        trailing: ElevatedButton(
-          onPressed: () => _showSalaryEditor(context, ref, salaryAsync.value),
-          child: const Text('Edit Salary'),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            CircleAvatar(child: Text(widget.staff.fullName[0].toUpperCase())),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(widget.staff.fullName, style: const TextStyle(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  salaryAsync.when(
+                    data: (s) => Text(s == null || s.baseSalary == 0
+                        ? 'Salary not configured'
+                        : 'Base: GH₵ ${s.baseSalary.toStringAsFixed(2)}'),
+                    loading: () => const Text('Loading...'),
+                    error: (error, stackTrace) => const Text('Error loading salary'),
+                  ),
+                ],
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                ElevatedButton(
+                  onPressed: () => _showSalaryEditor(context, ref, salary),
+                  child: const Text('Edit Salary'),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton(
+                  onPressed: payEnabled ? () => _payNow(context) : null,
+                  child: _isPaying ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Pay Now'),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
@@ -837,8 +946,50 @@ class _StaffSalaryCard extends ConsumerWidget {
   void _showSalaryEditor(BuildContext context, WidgetRef ref, StaffSalary? current) {
     showDialog(
       context: context,
-      builder: (context) => _SalaryEditorDialog(staff: staff, current: current),
-    ).then((_) => ref.invalidate(staffSalaryProvider(staff.id)));
+      builder: (context) => _SalaryEditorDialog(staff: widget.staff, current: current),
+    ).then((_) => ref.invalidate(staffSalaryProvider(widget.staff.id)));
+  }
+
+  Future<void> _payNow(BuildContext context) async {
+    if (_isPaying || widget.adminId == null) return;
+
+    setState(() => _isPaying = true);
+    try {
+      final service = ref.read(financeServiceProvider);
+      final salary = await ref.read(financeServiceProvider).getStaffSalary(widget.staff.id);
+      if (salary == null || salary.baseSalary <= 0) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Salary configuration missing for this staff member.'), backgroundColor: Colors.red));
+        return;
+      }
+
+      final alreadyPaid = await service.hasPayrollRecordForStaff(
+        staffId: widget.staff.id,
+        month: widget.month,
+        year: widget.year,
+      );
+      if (alreadyPaid) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Payroll for this staff member is already processed for the selected period.'), backgroundColor: Colors.orange));
+        return;
+      }
+
+      await service.processPayroll(
+        month: widget.month,
+        year: widget.year,
+        adminId: widget.adminId!,
+        staffId: widget.staff.id,
+      );
+
+      widget.onPayrollProcessed();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Payroll processed for this staff member.')));
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to process payroll: $error'), backgroundColor: Colors.red));
+    } finally {
+      if (mounted) setState(() => _isPaying = false);
+    }
   }
 }
 

@@ -16,7 +16,7 @@ publish_to: "none" # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+1
+version: 1.0.13+13
 
 environment:
   sdk: ^3.10.7
@@ -103,11 +103,13 @@ dev_dependencies:
   innosetup: any
 
 msix_config:
+  # Local dev defaults only. The Windows store release script temporarily
+  # overrides these values from scripts/msix.release.env for production builds.
   display_name: GhanaClass School Management
   publisher_display_name: GhanaClass
   identity_name: GhanaClass.GhanaClassSchoolManagement
   publisher: CN=GhanaClass
-  msix_version: 1.0.0.0
+  msix_version: 1.0.13.0
   logo_path: windows/runner/resources/app_icon.ico
   certificate_path: windows/msix/ghanaclass-dev.pfx
   certificate_password: GhanaClassDev123!

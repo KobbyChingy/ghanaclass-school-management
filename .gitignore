@@ -42,6 +42,7 @@ migrate_working_dir/
 # Local env files (keep secrets out of git)
 .env
 scripts/release.env
+scripts/msix.release.env
 backend/.env
 backend/.env.*
 
