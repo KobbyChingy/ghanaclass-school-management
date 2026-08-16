@@ -133,6 +133,11 @@ function Assert-HostedApiBaseUrl {
   if ($localHosts -contains $apiHost) {
     throw "Refusing production desktop store build with local API URL '$trimmed'. Set GHANACLASS_API_BASE_URL to a hosted backend (or pass -AllowLocalhostApiBaseUrl for local-only testing)."
   }
+
+  $transientHostSuffixes = @('.ts.net', '.trycloudflare.com')
+  if ($transientHostSuffixes | Where-Object { $apiHost.EndsWith($_) }) {
+    throw "Refusing production desktop store build with tunnel-backed API URL '$trimmed'. Use a stable public backend host such as Cloud Run instead of Tailscale Funnel or trycloudflare."
+  }
 }
 
 Push-Location (Join-Path $PSScriptRoot '..')

@@ -64,10 +64,26 @@ function Assert-HostedApiBaseUrl {
   if ($localHosts -contains $apiHost) {
     throw "Refusing production mobile build with local API URL '$trimmed'. Set GHANACLASS_API_BASE_URL to a hosted backend (or pass -AllowLocalhostApiBaseUrl for local-only testing)."
   }
+
+  $transientHostSuffixes = @('.ts.net', '.trycloudflare.com')
+  if ($transientHostSuffixes | Where-Object { $apiHost.EndsWith($_) }) {
+    throw "Refusing production mobile build with tunnel-backed API URL '$trimmed'. Use a stable public backend host such as Cloud Run instead of Tailscale Funnel or trycloudflare."
+  }
+}
+
+function Clear-AndroidFlutterReleaseIntermediates {
+  param([string]$RepoRoot)
+
+  $releaseFlutterAssetsDir = Join-Path $RepoRoot 'build\app\intermediates\flutter\release\flutter_assets'
+  if (Test-Path $releaseFlutterAssetsDir) {
+    Write-Host "Removing stale Flutter Android release intermediates..."
+    Remove-Item -Path $releaseFlutterAssetsDir -Recurse -Force
+  }
 }
 
 Push-Location (Join-Path $PSScriptRoot '..')
 try {
+  $repoRoot = Get-Location
   $releaseConfig = Import-ReleaseConfig -Path $ConfigFile
 
   if (-not $ApiBaseUrl) {
@@ -96,10 +112,12 @@ try {
     "--dart-define=GHANACLASS_SUPABASE_PUBLISHABLE_KEY=$SupabasePublishableKey"
   )
 
+  Clear-AndroidFlutterReleaseIntermediates -RepoRoot $repoRoot
   Write-Host "Building Android App Bundle for Play Store..."
   flutter build appbundle --release @dartDefines
 
   if ($IncludeApk) {
+    Clear-AndroidFlutterReleaseIntermediates -RepoRoot $repoRoot
     Write-Host "Building Android APK for testing/pilot rollout..."
     flutter build apk --release @dartDefines
   }

@@ -65,6 +65,28 @@ function Assert-HostedApiBaseUrl {
   if ($localHosts -contains $apiHost) {
     throw "Refusing production desktop installer build with local API URL '$trimmed'. Set GHANACLASS_API_BASE_URL to a hosted backend (or pass -AllowLocalhostApiBaseUrl for local-only testing)."
   }
+
+  $transientHostSuffixes = @('.ts.net', '.trycloudflare.com')
+  if ($transientHostSuffixes | Where-Object { $apiHost.EndsWith($_) }) {
+    throw "Refusing production desktop installer build with tunnel-backed API URL '$trimmed'. Use a stable public backend host such as Cloud Run instead of Tailscale Funnel or trycloudflare."
+  }
+}
+
+function Test-FileWriteAvailable {
+  param([string]$Path)
+
+  if (-not (Test-Path $Path)) {
+    return $true
+  }
+
+  try {
+    $stream = [System.IO.File]::Open($Path, [System.IO.FileMode]::Open, [System.IO.FileAccess]::ReadWrite, [System.IO.FileShare]::None)
+    $stream.Dispose()
+    return $true
+  }
+  catch {
+    return $false
+  }
 }
 
 Push-Location (Split-Path -Parent $PSCommandPath)
@@ -111,6 +133,14 @@ if (Test-Path $pubspecPath) {
 $distDir = Join-Path $repoRoot 'dist'
 New-Item -ItemType Directory -Force -Path $distDir | Out-Null
 
+$outputBaseFilename = "GhanaClassSchoolManagement_Setup_$appVersion"
+$defaultInstallerPath = Join-Path $distDir ($outputBaseFilename + '.exe')
+if (-not (Test-FileWriteAvailable -Path $defaultInstallerPath)) {
+  $timestampSuffix = Get-Date -Format 'yyyyMMdd-HHmmss'
+  $outputBaseFilename = "${outputBaseFilename}_$timestampSuffix"
+  Write-Host "Existing installer is locked; using alternate output filename $outputBaseFilename.exe"
+}
+
 Write-Host "Building Flutter Windows ($Configuration)..."
 $dartDefines = @(
   "--dart-define=GHANACLASS_API_BASE_URL=$ApiBaseUrl"
@@ -142,6 +172,6 @@ if (-not $possibleIscc) {
 
 $iscc = ($possibleIscc | Select-Object -First 1)
 Write-Host "Compiling Inno Setup script with: $iscc"
-& $iscc "/DAppVersion=$appVersion" "/DBuildConfiguration=$Configuration" $issPath
+& $iscc "/DAppVersion=$appVersion" "/DBuildConfiguration=$Configuration" "/DOutputBaseFilename=$outputBaseFilename" $issPath
 
 Write-Host "Done. Check the dist folder for the setup .exe."
