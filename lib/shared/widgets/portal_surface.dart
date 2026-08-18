@@ -2,6 +2,19 @@ import 'package:flutter/material.dart';
 
 import 'package:ghanaclass_school_management/core/constants/theme.dart';
 
+double portalHorizontalPadding(BuildContext context) {
+  final width = MediaQuery.sizeOf(context).width;
+  if (width < 420) return 12;
+  if (width < 760) return 16;
+  return 24;
+}
+
+double portalContentMaxWidth(BuildContext context) {
+  final width = MediaQuery.sizeOf(context).width;
+  if (width < 760) return 680;
+  return 1140;
+}
+
 class PortalHeroMetric {
   const PortalHeroMetric({
     required this.label,
@@ -37,10 +50,11 @@ class PortalHeroBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final compactCard = MediaQuery.sizeOf(context).width < 420;
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(compactCard ? 18 : 24),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(28),
         gradient: LinearGradient(
@@ -215,9 +229,10 @@ class PortalSectionPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final compactPanel = MediaQuery.sizeOf(context).width < 420;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(compactPanel ? 16 : 20),
       decoration: BoxDecoration(
         color: AppTheme.surface.withValues(alpha: 0.96),
         borderRadius: BorderRadius.circular(24),

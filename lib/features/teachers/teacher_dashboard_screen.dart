@@ -18,6 +18,7 @@ class TeacherDashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
+    final horizontalPadding = portalHorizontalPadding(context);
     final academicYear = ref.watch(activeYearProvider);
     final term = ref.watch(activeTermProvider);
     final staffProfileAsync = ref.watch(currentStaffProfileProvider);
@@ -78,7 +79,7 @@ class TeacherDashboardScreen extends ConsumerWidget {
         scrolledUnderElevation: 0,
       ),
       body: ListView(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(horizontalPadding),
         children: [
           PortalHeroBanner(
             eyebrow: 'Teacher workspace',
@@ -99,61 +100,90 @@ class TeacherDashboardScreen extends ConsumerWidget {
               PortalHeroMetric(label: 'Unread parent messages', value: unreadMessages),
             ],
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: horizontalPadding),
 
           PortalSectionPanel(
             title: 'Teaching Pulse',
             subtitle: 'A compact summary of the workload, access, and communication that matters most this term.',
-            child: Wrap(
-              spacing: 16,
-              runSpacing: 16,
-              children: [
-                _KpiCard(
-                  icon: LucideIcons.users,
-                  title: 'My Students',
-                  value: accessibleStudentsAsync.maybeWhen(data: (value) => value.length.toString(), orElse: () => '—'),
-                  subtitle: 'All students in your teaching scope',
-                  color: AppTheme.actionIndigo,
-                  onTap: () => context.push('/my-students'),
-                ),
-                _KpiCard(
-                  icon: LucideIcons.school,
-                  title: 'My Classes',
-                  value: classIdsAsync.maybeWhen(data: (v) => v.length.toString(), orElse: () => '—'),
-                  subtitle: 'Assigned classes',
-                  color: AppTheme.authorityYellow,
-                  onTap: () => context.push('/teacher/classes'),
-                ),
-                _KpiCard(
-                  icon: LucideIcons.clipboardList,
-                  title: 'Subject Load',
-                  value: assignmentsAsync.maybeWhen(data: (v) => v.length.toString(), orElse: () => '—'),
-                  subtitle: 'Class-subject assessment pairs',
-                  color: AppTheme.success,
-                  onTap: () => context.push('/my-students'),
-                ),
-                _KpiCard(
-                  icon: LucideIcons.mail,
-                  title: 'Parent Messages',
-                  value: unreadMessages,
-                  subtitle: 'Unread messages waiting for attention',
-                  color: AppTheme.primarySlate,
-                  onTap: () => context.push('/teacher/reports'),
-                ),
-                if (canMarkAttendance)
-                  _KpiCard(
-                    icon: LucideIcons.clipboardCheck,
-                    title: 'Attendance',
-                    value: 'Open',
-                    subtitle: 'Mark class attendance',
-                    color: AppTheme.primarySlate,
-                    onTap: () => context.push('/attendance'),
-                  ),
-              ],
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final gap = constraints.maxWidth < 420 ? 12.0 : 16.0;
+                double cardWidth;
+                if (constraints.maxWidth >= 1080) {
+                  cardWidth = (constraints.maxWidth - (gap * 3)) / 4;
+                } else if (constraints.maxWidth >= 720) {
+                  cardWidth = (constraints.maxWidth - gap) / 2;
+                } else {
+                  cardWidth = constraints.maxWidth;
+                }
+
+                return Wrap(
+                  spacing: gap,
+                  runSpacing: gap,
+                  children: [
+                    SizedBox(
+                      width: cardWidth,
+                      child: _KpiCard(
+                        icon: LucideIcons.users,
+                        title: 'My Students',
+                        value: accessibleStudentsAsync.maybeWhen(data: (value) => value.length.toString(), orElse: () => '—'),
+                        subtitle: 'All students in your teaching scope',
+                        color: AppTheme.actionIndigo,
+                        onTap: () => context.push('/my-students'),
+                      ),
+                    ),
+                    SizedBox(
+                      width: cardWidth,
+                      child: _KpiCard(
+                        icon: LucideIcons.school,
+                        title: 'My Classes',
+                        value: classIdsAsync.maybeWhen(data: (v) => v.length.toString(), orElse: () => '—'),
+                        subtitle: 'Assigned classes',
+                        color: AppTheme.authorityYellow,
+                        onTap: () => context.push('/teacher/classes'),
+                      ),
+                    ),
+                    SizedBox(
+                      width: cardWidth,
+                      child: _KpiCard(
+                        icon: LucideIcons.clipboardList,
+                        title: 'Subject Load',
+                        value: assignmentsAsync.maybeWhen(data: (v) => v.length.toString(), orElse: () => '—'),
+                        subtitle: 'Class-subject assessment pairs',
+                        color: AppTheme.success,
+                        onTap: () => context.push('/my-students'),
+                      ),
+                    ),
+                    SizedBox(
+                      width: cardWidth,
+                      child: _KpiCard(
+                        icon: LucideIcons.mail,
+                        title: 'Parent Messages',
+                        value: unreadMessages,
+                        subtitle: 'Unread messages waiting for attention',
+                        color: AppTheme.primarySlate,
+                        onTap: () => context.push('/teacher/reports'),
+                      ),
+                    ),
+                    if (canMarkAttendance)
+                      SizedBox(
+                        width: cardWidth,
+                        child: _KpiCard(
+                          icon: LucideIcons.clipboardCheck,
+                          title: 'Attendance',
+                          value: 'Open',
+                          subtitle: 'Mark class attendance',
+                          color: AppTheme.primarySlate,
+                          onTap: () => context.push('/attendance'),
+                        ),
+                      ),
+                  ],
+                );
+              },
             ),
           ),
 
-          const SizedBox(height: 28),
+          SizedBox(height: horizontalPadding + 4),
           PortalSectionPanel(
             title: 'Important Summary',
             subtitle: 'Your access level, class responsibility, and staff identity at a glance.',
@@ -190,7 +220,7 @@ class TeacherDashboardScreen extends ConsumerWidget {
             ),
           ),
 
-          const SizedBox(height: 28),
+          SizedBox(height: horizontalPadding + 4),
           PortalSectionPanel(
             title: 'Next Steps',
             subtitle: 'High-frequency teaching actions, reports, and classroom workflows.',

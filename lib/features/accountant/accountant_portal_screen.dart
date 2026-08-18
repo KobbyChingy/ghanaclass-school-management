@@ -15,6 +15,8 @@ class AccountantPortalScreen extends ConsumerWidget {
     final currentUser = ref.watch(currentUserProvider);
     final academicYear = ref.watch(activeYearProvider);
     final term = ref.watch(activeTermProvider);
+    final horizontalPadding = portalHorizontalPadding(context);
+    final contentMaxWidth = portalContentMaxWidth(context);
     final tiles = <_PortalTileData>[
       _PortalTileData(
         title: 'My Profile',
@@ -92,10 +94,10 @@ class AccountantPortalScreen extends ConsumerWidget {
 
     return Scaffold(
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(horizontalPadding),
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1140),
+            constraints: BoxConstraints(maxWidth: contentMaxWidth),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -112,27 +114,28 @@ class AccountantPortalScreen extends ConsumerWidget {
                     PortalHeroMetric(label: 'Finance lanes', value: '${tiles.length}'),
                   ],
                 ),
-                const SizedBox(height: 24),
+                SizedBox(height: horizontalPadding),
                 PortalSectionPanel(
                   title: 'Finance Lanes',
                   subtitle: 'Billing, collections, expense controls, payroll, reconciliation, and compliance workflows.',
                   child: LayoutBuilder(
                     builder: (context, constraints) {
-                      double cardWidth = (constraints.maxWidth - 32) / 3;
+                      final gap = constraints.maxWidth < 420 ? 12.0 : 16.0;
+                      double cardWidth = (constraints.maxWidth - (gap * 2)) / 3;
                       if (constraints.maxWidth < 980) {
-                        cardWidth = (constraints.maxWidth - 16) / 2;
+                        cardWidth = (constraints.maxWidth - gap) / 2;
                       }
                       if (constraints.maxWidth < 640) {
                         cardWidth = constraints.maxWidth;
                       }
                       return Wrap(
-                        spacing: 16,
-                        runSpacing: 16,
+                        spacing: gap,
+                        runSpacing: gap,
                         children: [
                           for (var index = 0; index < tiles.length; index++)
                             SizedBox(
                               width: cardWidth,
-                              height: 190,
+                              height: constraints.maxWidth < 420 ? 176 : 190,
                               child: _PortalTile(data: tiles[index], index: index),
                             ),
                         ],
