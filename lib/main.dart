@@ -46,13 +46,14 @@ void main() async {
     await windowManager.ensureInitialized();
 
     const windowOptions = WindowOptions(
-      size: Size(1280, 800),
+      size: Size(1180, 680),
       center: true,
       backgroundColor: Colors.transparent,
       skipTaskbar: false,
       titleBarStyle: TitleBarStyle.normal,
     );
     windowManager.waitUntilReadyToShow(windowOptions, () async {
+      await windowManager.setMinimumSize(const Size(960, 600));
       await windowManager.show();
       await windowManager.focus();
     });
