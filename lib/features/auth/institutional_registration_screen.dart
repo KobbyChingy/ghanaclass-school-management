@@ -125,8 +125,8 @@ class _InstitutionalRegistrationScreenState
             builder: (context) => AlertDialog(
               title: const Text('Registration Updated'),
               content: const Text(
-                'This device already had an institution registered. The school profile was updated and the Administrator password was reset for the email you provided.\n\n'
-                'You can now log in using the same email + password.\n\n'
+                'This device already had an institution registered. The local school profile on this device was updated.\n\n'
+                'If the official email already exists on the server, log in with that account instead of registering again.\n\n'
                 'If you intended to register a completely different school, use Settings → Danger Zone → FACTORY RESET (or the hidden reset on the Login screen) and then register again.',
               ),
               actions: [
@@ -171,6 +171,13 @@ class _InstitutionalRegistrationScreenState
   @override
   Widget build(BuildContext context) {
     final identityAsync = ref.watch(institutionalIdentityProvider);
+    final viewport = MediaQuery.sizeOf(context);
+    final isCompactWidth = viewport.width < 640;
+    final cardPadding = isCompactWidth
+        ? const EdgeInsets.fromLTRB(20, 24, 20, 18)
+        : const EdgeInsets.fromLTRB(44, 40, 44, 30);
+    final cardRadius = isCompactWidth ? 28.0 : _cardRadius;
+    final cardMaxWidth = isCompactWidth ? 460.0 : _cardMaxWidth;
     final brandTitle = identityAsync.maybeWhen(
       data: (identity) => (identity?.schoolName.trim().isNotEmpty == true)
           ? identity!.schoolName.trim()
@@ -210,13 +217,16 @@ class _InstitutionalRegistrationScreenState
           SafeArea(
             child: Center(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+                padding: EdgeInsets.symmetric(
+                  horizontal: isCompactWidth ? 18 : 24,
+                  vertical: isCompactWidth ? 16 : 24,
+                ),
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: _cardMaxWidth),
+                  constraints: BoxConstraints(maxWidth: cardMaxWidth),
                   child: Container(
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(_cardRadius),
+                      borderRadius: BorderRadius.circular(cardRadius),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withValues(alpha: 0.25),
@@ -231,7 +241,7 @@ class _InstitutionalRegistrationScreenState
                       ],
                     ),
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(44, 40, 44, 30),
+                      padding: cardPadding,
                       child: Form(
                         key: _formKey,
                         child: Column(
@@ -241,11 +251,11 @@ class _InstitutionalRegistrationScreenState
                               child: Column(
                                 children: [
                                   Container(
-                                    width: 62,
-                                    height: 62,
+                                    width: isCompactWidth ? 54 : 62,
+                                    height: isCompactWidth ? 54 : 62,
                                     decoration: BoxDecoration(
                                       color: Colors.white,
-                                      borderRadius: BorderRadius.circular(18),
+                                      borderRadius: BorderRadius.circular(isCompactWidth ? 14 : 18),
                                       boxShadow: [
                                         BoxShadow(
                                           color: Colors.black.withValues(alpha: 0.08),
@@ -254,15 +264,15 @@ class _InstitutionalRegistrationScreenState
                                         ),
                                       ],
                                     ),
-                                    padding: const EdgeInsets.all(10),
+                                    padding: EdgeInsets.all(isCompactWidth ? 8 : 10),
                                     child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(14),
+                                      borderRadius: BorderRadius.circular(isCompactWidth ? 10 : 14),
                                       child: Container(
                                         color: const Color(0xFFF3F6FC),
                                         alignment: Alignment.center,
-                                        child: const Icon(
+                                        child: Icon(
                                           Icons.school_rounded,
-                                          size: 28,
+                                          size: isCompactWidth ? 24 : 28,
                                           color: Color(0xFF7B8AA6),
                                         ),
                                       ),
@@ -272,6 +282,7 @@ class _InstitutionalRegistrationScreenState
                                   Text(
                                     brandTitle,
                                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                      fontSize: isCompactWidth ? 24 : null,
                                           fontWeight: FontWeight.w800,
                                           letterSpacing: 0.2,
                                           color: const Color(0xFF0B1220),
@@ -282,7 +293,7 @@ class _InstitutionalRegistrationScreenState
                                   Text(
                                     'INSTITUTIONAL MANAGEMENT SYSTEM',
                                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                          letterSpacing: 2.6,
+                                          letterSpacing: isCompactWidth ? 1.8 : 2.6,
                                           color: const Color(0xFF93A0B5),
                                           fontWeight: FontWeight.w700,
                                         ),
@@ -291,7 +302,7 @@ class _InstitutionalRegistrationScreenState
                                 ],
                               ),
                             ),
-                            const SizedBox(height: 30),
+                            SizedBox(height: isCompactWidth ? 22 : 30),
 
                           _buildLabel('Institution Name'),
                           TextFormField(
@@ -326,7 +337,7 @@ class _InstitutionalRegistrationScreenState
                               return null;
                             },
                           ),
-                          const SizedBox(height: 18),
+                          SizedBox(height: isCompactWidth ? 14 : 18),
 
                           _buildLabel('Official Email'),
                           TextFormField(
@@ -347,7 +358,7 @@ class _InstitutionalRegistrationScreenState
                               return null;
                             },
                           ),
-                          const SizedBox(height: 18),
+                          SizedBox(height: isCompactWidth ? 14 : 18),
 
                           _buildLabel('Access Password'),
                           TextFormField(
@@ -380,11 +391,11 @@ class _InstitutionalRegistrationScreenState
                               return null;
                             },
                           ),
-                          const SizedBox(height: 24),
+                          SizedBox(height: isCompactWidth ? 18 : 24),
 
                           // Submit Button
                           SizedBox(
-                            height: 56,
+                            height: isCompactWidth ? 52 : 56,
                             child: ElevatedButton(
                               onPressed: _isLoading ? null : _handleRegistration,
                               style: ElevatedButton.styleFrom(

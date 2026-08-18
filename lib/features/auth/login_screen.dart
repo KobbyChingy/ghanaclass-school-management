@@ -25,7 +25,7 @@ class LoginScreen extends ConsumerStatefulWidget {
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   // Network/server logins should fail fast; local SQLite logins may take longer
   // on first open after upgrades/seeding.
-  static const Duration _remoteLoginTimeout = Duration(seconds: 20);
+  static const Duration _remoteLoginTimeout = Duration(seconds: 75);
   static const Duration _localLoginTimeout = Duration(minutes: 2);
 
   final _formKey = GlobalKey<FormState>();
@@ -47,6 +47,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         normalized.startsWith('https://127.0.0.1');
   }
 
+  String _backendUnavailableMessage(String configuredBaseUrl, {required bool timedOut}) {
+    if (_looksLikeLocalServerUrl(configuredBaseUrl)) {
+      return timedOut
+          ? 'Local backend at $configuredBaseUrl did not respond in time. Check that the backend is running and try again.'
+          : 'Local backend is not reachable at $configuredBaseUrl. Start the backend server and try again.';
+    }
+
+    final configuredUri = Uri.tryParse(configuredBaseUrl.trim());
+    final isRenderHost = configuredUri?.host.toLowerCase().endsWith('.onrender.com') ?? false;
+
+    if (BackendConfig.isValidApiBaseUrl(configuredBaseUrl)) {
+      if (timedOut && isRenderHost) {
+        return 'The backend at $configuredBaseUrl is taking too long to wake up. Free Render services can sleep when idle. Wait a moment and try again.';
+      }
+
+      return timedOut
+          ? 'The backend at $configuredBaseUrl did not respond in time. Check your internet connection, DNS, and backend availability, then try again.'
+          : 'The backend at $configuredBaseUrl is not reachable. Check your internet connection, DNS, and backend availability, then try again.';
+    }
+
+    return timedOut
+        ? 'Connection timed out. Please check your internet and try again.'
+        : 'You are offline. Please connect to an internet source and try again.';
+  }
+
   Future<String> _friendlyLoginError(Object error) async {
     if (AppMode.forceServerModeOff && !AppMode.forceServerModeOn) {
       // In offline/local builds we shouldn't instruct users to connect to internet.
@@ -57,13 +82,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final prefs = await SharedPreferences.getInstance();
     final configuredBaseUrl =
         prefs.getString('server_base_url') ?? BackendConfig.defaultApiBaseUrl;
-    final usingLocalServer = _looksLikeLocalServerUrl(configuredBaseUrl);
 
     if (error is SocketException || error is TimeoutException) {
-      if (usingLocalServer) {
-        return 'Local backend is not reachable at $configuredBaseUrl. Start the backend server and try again.';
-      }
-      return 'You are offline. Please connect to an internet source and try again.';
+      return _backendUnavailableMessage(
+        configuredBaseUrl,
+        timedOut: error is TimeoutException,
+      );
     }
 
     final raw = error.toString();
@@ -74,17 +98,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         normalized.contains('connection refused') ||
         normalized.contains('network is unreachable') ||
         normalized.contains('no address associated with hostname')) {
-      if (usingLocalServer) {
-        return 'Local backend is not reachable at $configuredBaseUrl. Start the backend server and try again.';
-      }
-      return 'You are offline. Please connect to an internet source and try again.';
+      return _backendUnavailableMessage(configuredBaseUrl, timedOut: false);
     }
 
     if (normalized.contains('timed out') || normalized.contains('timeout')) {
-      if (usingLocalServer) {
-        return 'Local backend at $configuredBaseUrl did not respond in time. Check that the backend is running and try again.';
-      }
-      return 'Connection timed out. Please check your internet and try again.';
+      return _backendUnavailableMessage(configuredBaseUrl, timedOut: true);
     }
 
     if (normalized.contains('database error') ||
@@ -104,6 +122,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         m.contains('you do not have access to this portal') ||
         m.contains('account has been deactivated') ||
         m.contains('you are offline') ||
+        m.contains('backend at') ||
+        m.contains('backend is not reachable') ||
         m.contains('connection timed out') ||
         m.contains('password recovery') ||
         m.contains('institution not registered') ||
@@ -423,6 +443,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final identityAsync = ref.watch(institutionalIdentityProvider);
+    final viewport = MediaQuery.sizeOf(context);
+    final isCompactWidth = viewport.width < 640;
+    final horizontalPadding = isCompactWidth ? 18.0 : 24.0;
+    final cardPadding = isCompactWidth
+        ? const EdgeInsets.fromLTRB(20, 24, 20, 18)
+        : const EdgeInsets.fromLTRB(44, 36, 44, 26);
+    final cardRadius = isCompactWidth ? 24.0 : _cardRadius;
+    final cardMaxWidth = isCompactWidth ? 460.0 : 560.0;
+    final logoSize = isCompactWidth ? 56.0 : 68.0;
+    final titleFontSize = isCompactWidth ? 20.0 : 26.0;
 
     final brandTitle = identityAsync.maybeWhen(
       data: (identity) => (identity?.schoolName.trim().isNotEmpty == true)
@@ -449,13 +479,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   Expanded(
                     child: Center(
                       child: SingleChildScrollView(
-                        padding: const EdgeInsets.all(24.0),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: horizontalPadding,
+                          vertical: isCompactWidth ? 16 : 24,
+                        ),
                         child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 560),
+                          constraints: BoxConstraints(maxWidth: cardMaxWidth),
                           child: Container(
                             decoration: BoxDecoration(
                               color: Colors.white,
-                              borderRadius: BorderRadius.circular(_cardRadius),
+                              borderRadius: BorderRadius.circular(cardRadius),
                               boxShadow: const [
                                 BoxShadow(
                                   color: Color(0x26000000),
@@ -465,7 +498,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               ],
                             ),
                             child: Padding(
-                              padding: const EdgeInsets.fromLTRB(44, 36, 44, 26),
+                              padding: cardPadding,
                               child: Form(
                                 key: _formKey,
                                 child: Column(
@@ -473,22 +506,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   children: [
                                     Center(
                                       child: Container(
-                                        width: 68,
-                                        height: 68,
-                                        padding: const EdgeInsets.all(10),
+                                        width: logoSize,
+                                        height: logoSize,
+                                        padding: EdgeInsets.all(isCompactWidth ? 8 : 10),
                                         decoration: BoxDecoration(
                                           color: Colors.white,
-                                          borderRadius: BorderRadius.circular(16),
+                                          borderRadius: BorderRadius.circular(isCompactWidth ? 14 : 16),
                                           border: Border.all(color: const Color(0xFFE7ECF5), width: 1),
                                         ),
                                         child: ClipRRect(
-                                          borderRadius: BorderRadius.circular(10),
+                                          borderRadius: BorderRadius.circular(isCompactWidth ? 8 : 10),
                                           child: Container(
                                             color: const Color(0xFFF3F6FC),
                                             alignment: Alignment.center,
-                                            child: const Icon(
+                                            child: Icon(
                                               Icons.school_rounded,
-                                              size: 34,
+                                              size: isCompactWidth ? 28 : 34,
                                               color: Color(0xFF7B8AA6),
                                             ),
                                           ),
@@ -499,25 +532,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     Text(
                                       brandTitle,
                                       textAlign: TextAlign.center,
-                                      style: const TextStyle(
-                                        fontSize: 26,
+                                      style: TextStyle(
+                                        fontSize: titleFontSize,
                                         fontWeight: FontWeight.w900,
                                         letterSpacing: 0.2,
                                         color: Colors.black,
                                       ),
                                     ),
                                     const SizedBox(height: 6),
-                                    const Text(
+                                    Text(
                                       'INSTITUTIONAL MANAGEMENT SYSTEM',
                                       textAlign: TextAlign.center,
                                       style: TextStyle(
-                                        fontSize: 10,
+                                        fontSize: isCompactWidth ? 9 : 10,
                                         fontWeight: FontWeight.w700,
-                                        letterSpacing: 2.2,
+                                        letterSpacing: isCompactWidth ? 1.6 : 2.2,
                                         color: Color(0xFFA6B1C2),
                                       ),
                                     ),
-                                    const SizedBox(height: 30),
+                                    SizedBox(height: isCompactWidth ? 22 : 30),
                                     _fieldLabel('USER EMAIL'),
                                     TextFormField(
                                       controller: _emailController,
@@ -531,7 +564,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                         return null;
                                       },
                                     ),
-                                    const SizedBox(height: 18),
+                                    SizedBox(height: isCompactWidth ? 14 : 18),
                                     _fieldLabel('SECURE PIN/PASS'),
                                     TextFormField(
                                       controller: _passwordController,
@@ -565,7 +598,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                         ),
                                       ),
                                     ),
-                                    const SizedBox(height: 18),
+                                    SizedBox(height: isCompactWidth ? 14 : 18),
                                     _fieldLabel('PORTAL ACCESS ROLE'),
                                     DropdownButtonFormField<UserRole>(
                                       initialValue: _selectedRole,
@@ -634,9 +667,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                         setState(() => _selectedRole = role);
                                       },
                                     ),
-                                    const SizedBox(height: 22),
+                                    SizedBox(height: isCompactWidth ? 18 : 22),
                                     Container(
-                                      height: 56,
+                                      height: isCompactWidth ? 52 : 56,
                                       decoration: BoxDecoration(
                                         borderRadius: BorderRadius.circular(14),
                                         boxShadow: const [
@@ -676,15 +709,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                               ),
                                       ),
                                     ),
-                                    const SizedBox(height: 18),
+                                    SizedBox(height: isCompactWidth ? 14 : 18),
                                     const Divider(height: 1, color: Color(0xFFE9EEF6)),
-                                    const SizedBox(height: 14),
+                                    SizedBox(height: isCompactWidth ? 12 : 14),
                                     Column(
                                       children: [
-                                        const Text(
+                                        Text(
                                           'Registering a new school?',
                                           style: TextStyle(
-                                            fontSize: 12,
+                                            fontSize: isCompactWidth ? 11 : 12,
                                             color: Color(0xFF64748B),
                                             fontWeight: FontWeight.w600,
                                           ),
@@ -692,10 +725,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                         const SizedBox(height: 6),
                                         InkWell(
                                           onTap: () => context.push('/register'),
-                                          child: const Text(
+                                          child: Text(
                                             'GET STARTED HERE',
                                             style: TextStyle(
-                                              fontSize: 12,
+                                              fontSize: isCompactWidth ? 11 : 12,
                                               fontWeight: FontWeight.w900,
                                               letterSpacing: 0.8,
                                               color: _linkOrange,
@@ -705,7 +738,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                         ),
                                       ],
                                     ),
-                                    const SizedBox(height: 18),
+                                    SizedBox(height: isCompactWidth ? 14 : 18),
                                     GestureDetector(
                                       onLongPress: () => _showResetConfirmation(context),
                                       child: Column(

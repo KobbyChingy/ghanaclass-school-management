@@ -19,6 +19,9 @@ import 'package:ghanaclass_school_management/core/router/role_routes.dart';
 class MainLayout extends ConsumerWidget {
   final Widget child;
 
+  static const double _compactShellWidthBreakpoint = 1180;
+  static const double _compactShellHeightBreakpoint = 760;
+
   const MainLayout({super.key, required this.child});
 
   Future<void> _showChangePasswordDialog(BuildContext context, WidgetRef ref, int userId) async {
@@ -346,444 +349,687 @@ class MainLayout extends ConsumerWidget {
     final portalLabel = supportedPortalRoles.contains(userRole)
         ? '${userRole.displayName.toUpperCase()} PORTAL'
         : 'STAFF ACCESS';
+    final viewport = MediaQuery.sizeOf(context);
+    final useCompactShell =
+        viewport.width < _compactShellWidthBreakpoint || viewport.height < _compactShellHeightBreakpoint;
+
+    bool isRouteActive(String matchedLocation, String route) {
+      if (matchedLocation == route) return true;
+      if (matchedLocation.startsWith('$route/')) return true;
+      return false;
+    }
+
+    bool isItemActive(String matchedLocation, NavigationItem item) {
+      if (isRouteActive(matchedLocation, item.route)) return true;
+      for (final child in item.children) {
+        if (isRouteActive(matchedLocation, child.route)) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    Widget buildSchoolMark({double size = 48}) {
+      return Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              roleColor.withValues(alpha: 0.32),
+              Colors.white.withValues(alpha: 0.08),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(size * 0.3),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: identityAsync.maybeWhen(
+          data: (identity) {
+            final bytes = identity?.logoBytes;
+            if (bytes != null && bytes.isNotEmpty) {
+              return Image.memory(bytes, fit: BoxFit.cover);
+            }
+            final path = identity?.logoPath;
+            if (path != null && path.trim().isNotEmpty) {
+              return Image.file(File(path), fit: BoxFit.cover);
+            }
+            return const Icon(LucideIcons.school, size: 22, color: Colors.white70);
+          },
+          orElse: () => const Icon(LucideIcons.school, size: 22, color: Colors.white70),
+        ),
+      );
+    }
+
+    List<Widget> buildNavigationTiles(BuildContext context, String matchedLocation) {
+      Widget buildNavTile(NavigationItem item, {double indent = 0}) {
+        final isActive = indent > 0
+            ? isRouteActive(matchedLocation, item.route)
+            : isItemActive(matchedLocation, item);
+
+        return Padding(
+          padding: EdgeInsets.fromLTRB(12 + indent, 4, 12, 4),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            decoration: BoxDecoration(
+              gradient: isActive
+                  ? LinearGradient(
+                      colors: [
+                        roleColor.withValues(alpha: 0.28),
+                        roleColor.withValues(alpha: 0.12),
+                      ],
+                    )
+                  : null,
+              color: isActive ? null : Colors.transparent,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: isActive ? roleColor.withValues(alpha: 0.18) : Colors.transparent,
+              ),
+            ),
+            child: ListTile(
+              leading: Icon(
+                item.icon,
+                color: isActive ? Colors.white : Colors.white70,
+                size: indent > 0 ? 18 : 20,
+              ),
+              title: Text(
+                item.label,
+                style: TextStyle(
+                  color: isActive ? Colors.white : Colors.white70,
+                  fontWeight: isActive ? FontWeight.w800 : FontWeight.w600,
+                  fontSize: indent > 0 ? 13 : 14,
+                ),
+              ),
+              selected: isActive,
+              selectedTileColor: Colors.transparent,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+              onTap: () {
+                Navigator.of(context).maybePop();
+                context.go(item.route);
+              },
+            ),
+          ),
+        );
+      }
+
+      final tiles = <Widget>[];
+      for (final item in navigationItems) {
+        tiles.add(buildNavTile(item));
+        if (item.children.isNotEmpty) {
+          for (final childItem in item.children) {
+            tiles.add(buildNavTile(childItem, indent: 18));
+          }
+        }
+      }
+      return tiles;
+    }
+
+    Widget buildSidebar(BuildContext context, String matchedLocation) {
+      return Container(
+        width: 284,
+        margin: const EdgeInsets.fromLTRB(18, 18, 0, 18),
+        decoration: BoxDecoration(
+          gradient: AppTheme.sidebarGradient,
+          borderRadius: BorderRadius.circular(30),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.primarySlate.withValues(alpha: 0.18),
+              blurRadius: 28,
+              offset: const Offset(0, 18),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
+              decoration: BoxDecoration(
+                border: Border(bottom: BorderSide(color: Colors.white.withValues(alpha: 0.08))),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                    ),
+                    child: Text(
+                      portalLabel,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.6,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      buildSchoolMark(),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              schoolName,
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                                fontSize: 14,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              'Operational workspace',
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Colors.white70,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      _NotificationsBell(roleColor: roleColor),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  const SyncStatusIndicator(),
+                ],
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                children: buildNavigationTiles(context, matchedLocation),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.08))),
+              ),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: roleColor.withValues(alpha: 0.2),
+                    child: Text(
+                      currentUser.fullName[0].toUpperCase(),
+                      style: TextStyle(color: roleColor, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          currentUser.fullName,
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                              ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          currentUser.email,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white70),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Change password',
+                    icon: const Icon(LucideIcons.keyRound),
+                    color: Colors.white70,
+                    onPressed: () => _showChangePasswordDialog(context, ref, currentUser.id),
+                  ),
+                  IconButton(
+                    icon: const Icon(LucideIcons.logOut),
+                    color: Colors.white70,
+                    onPressed: () async {
+                      final token = ref.read(sessionTokenProvider);
+                      if (token != null) {
+                        await ref.read(authServiceProvider).logout(token);
+                        final prefs = await SharedPreferences.getInstance();
+                        await prefs.remove('session_token');
+                        ref.read(sessionTokenProvider.notifier).setToken(null);
+                        ref.read(currentUserProvider.notifier).setUser(null);
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.16),
+                border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.04))),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 18,
+                    height: 18,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white.withValues(alpha: 0.12),
+                    ),
+                    alignment: Alignment.center,
+                    child: const Icon(
+                      Icons.school_rounded,
+                      size: 12,
+                      color: Colors.white70,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Powered by OmniWeave',
+                    style: TextStyle(
+                      color: Colors.white60,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    Widget buildDrawerContent(BuildContext context, String matchedLocation) {
+      return SafeArea(
+        child: DecoratedBox(
+          decoration: BoxDecoration(gradient: AppTheme.sidebarGradient),
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        buildSchoolMark(size: 44),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                schoolName,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                portalLabel,
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: Colors.white70,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        _NotificationsBell(roleColor: roleColor),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    const SyncStatusIndicator(),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.only(top: 4, bottom: 8),
+                  children: buildNavigationTiles(context, matchedLocation),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.08))),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          backgroundColor: roleColor.withValues(alpha: 0.2),
+                          child: Text(
+                            currentUser.fullName[0].toUpperCase(),
+                            style: TextStyle(color: roleColor, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                currentUser.fullName,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                              ),
+                              Text(
+                                currentUser.email,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white70),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () => _showChangePasswordDialog(context, ref, currentUser.id),
+                            icon: const Icon(LucideIcons.keyRound, size: 16),
+                            label: const Text('Password'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              side: BorderSide(color: Colors.white.withValues(alpha: 0.20)),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: FilledButton.icon(
+                            onPressed: () async {
+                              final token = ref.read(sessionTokenProvider);
+                              if (token != null) {
+                                await ref.read(authServiceProvider).logout(token);
+                                final prefs = await SharedPreferences.getInstance();
+                                await prefs.remove('session_token');
+                                ref.read(sessionTokenProvider.notifier).setToken(null);
+                                ref.read(currentUserProvider.notifier).setUser(null);
+                              }
+                            },
+                            icon: const Icon(LucideIcons.logOut, size: 16),
+                            label: const Text('Logout'),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: roleColor,
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    Widget buildContentFrame({required Widget header, required EdgeInsets padding}) {
+      return Expanded(
+        child: Padding(
+          padding: padding,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.68),
+              borderRadius: BorderRadius.circular(useCompactShell ? 24 : 34),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.75)),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.primarySlate.withValues(alpha: 0.08),
+                  blurRadius: 28,
+                  offset: const Offset(0, 20),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(useCompactShell ? 24 : 34),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                child: Column(
+                  children: [
+                    header,
+                    Expanded(
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 250),
+                        child: Container(
+                          key: ValueKey(child.runtimeType),
+                          decoration: BoxDecoration(gradient: AppTheme.appBackgroundGradient),
+                          child: child,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    final matchedLocation = GoRouterState.of(context).matchedLocation;
     return Scaffold(
+      drawer: useCompactShell
+          ? Drawer(
+              width: viewport.width < 420 ? viewport.width * 0.88 : 360,
+              child: buildDrawerContent(context, matchedLocation),
+            )
+          : null,
       backgroundColor: AppTheme.background,
       body: Stack(
         children: [
           const OfflineConnectivityListener(serverModeOnly: true),
           DecoratedBox(
             decoration: BoxDecoration(gradient: AppTheme.appBackgroundGradient),
-            child: Row(
-              children: [
-                // Sidebar
-                Container(
-                  width: 284,
-                  margin: const EdgeInsets.fromLTRB(18, 18, 0, 18),
-                  decoration: BoxDecoration(
-                    gradient: AppTheme.sidebarGradient,
-                    borderRadius: BorderRadius.circular(30),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppTheme.primarySlate.withValues(alpha: 0.18),
-                        blurRadius: 28,
-                        offset: const Offset(0, 18),
+            child: useCompactShell
+                ? Column(
+                    children: [
+                      buildContentFrame(
+                        padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+                        header: Container(
+                          height: 78,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.78),
+                            border: const Border(
+                              bottom: BorderSide(color: Color(0xFFE2E8F0)),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Builder(
+                                builder: (context) => IconButton(
+                                  tooltip: 'Open navigation',
+                                  onPressed: () => Scaffold.of(context).openDrawer(),
+                                  icon: const Icon(LucideIcons.menu),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              buildSchoolMark(size: 36),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      schoolName,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                            fontWeight: FontWeight.w900,
+                                            letterSpacing: -0.3,
+                                          ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      portalLabel,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                            color: AppTheme.textMuted,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const SyncStatusIndicator(),
+                            ],
+                          ),
+                        ),
                       ),
                     ],
-                  ),
-                  child: Column(
+                  )
+                : Row(
                     children: [
-                // Header
-                Container(
-                  padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
-                  decoration: BoxDecoration(
-                    border: Border(bottom: BorderSide(color: Colors.white.withValues(alpha: 0.08))),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(999),
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-                        ),
-                        child: Text(
-                          portalLabel,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.6,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      Row(
-                        children: [
-                          Container(
-                            width: 48,
-                            height: 48,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  roleColor.withValues(alpha: 0.32),
-                                  Colors.white.withValues(alpha: 0.08),
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-                            ),
-                            clipBehavior: Clip.antiAlias,
-                            child: identityAsync.maybeWhen(
-                              data: (identity) {
-                                final bytes = identity?.logoBytes;
-                                if (bytes != null && bytes.isNotEmpty) {
-                                  return Image.memory(bytes, fit: BoxFit.cover);
-                                }
-                                final path = identity?.logoPath;
-                                if (path != null && path.trim().isNotEmpty) {
-                                  return Image.file(File(path), fit: BoxFit.cover);
-                                }
-                                return const Icon(LucideIcons.school, size: 22, color: Colors.white70);
-                              },
-                              orElse: () => const Icon(LucideIcons.school, size: 22, color: Colors.white70),
+                      buildSidebar(context, matchedLocation),
+                      buildContentFrame(
+                        padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+                        header: Container(
+                          height: 84,
+                          padding: const EdgeInsets.symmetric(horizontal: 28),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.72),
+                            border: const Border(
+                              bottom: BorderSide(color: Color(0xFFE2E8F0)),
                             ),
                           ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  schoolName,
-                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.w800,
-                                    color: Colors.white,
-                                    fontSize: 14,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                Text(
-                                    'Operational workspace',
-                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                        color: Colors.white70,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w600,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 40,
+                                    height: 40,
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(12),
+                                      gradient: LinearGradient(
+                                        colors: [
+                                          roleColor.withValues(alpha: 0.18),
+                                          AppTheme.surfaceMuted,
+                                        ],
                                       ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          _NotificationsBell(roleColor: roleColor),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      const SyncStatusIndicator(),
-                    ],
-                  ),
-                ),
-                
-                // Navigation Items
-                Expanded(
-                  child: Builder(
-                    builder: (context) {
-                      final matchedLocation = GoRouterState.of(context).matchedLocation;
-
-                      bool isRouteActive(String route) {
-                        if (matchedLocation == route) return true;
-                        if (matchedLocation.startsWith('$route/')) return true;
-                        return false;
-                      }
-
-                      bool isItemActive(NavigationItem item) {
-                        if (isRouteActive(item.route)) return true;
-                        for (final child in item.children) {
-                          if (isRouteActive(child.route)) return true;
-                        }
-                        return false;
-                      }
-
-                      Widget buildNavTile(NavigationItem item, {double indent = 0}) {
-                        final isActive = indent > 0 ? isRouteActive(item.route) : isItemActive(item);
-
-                        return Padding(
-                          padding: EdgeInsets.fromLTRB(12 + indent, 4, 12, 4),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 180),
-                            decoration: BoxDecoration(
-                              gradient: isActive
-                                  ? LinearGradient(
-                                      colors: [
-                                        roleColor.withValues(alpha: 0.28),
-                                        roleColor.withValues(alpha: 0.12),
-                                      ],
-                                    )
-                                  : null,
-                              color: isActive ? null : Colors.transparent,
-                              borderRadius: BorderRadius.circular(18),
-                              border: Border.all(
-                                color: isActive ? roleColor.withValues(alpha: 0.18) : Colors.transparent,
-                              ),
-                            ),
-                            child: ListTile(
-                              leading: Icon(item.icon, color: isActive ? Colors.white : Colors.white70, size: indent > 0 ? 18 : 20),
-                              title: Text(
-                                item.label,
-                                style: TextStyle(
-                                  color: isActive ? Colors.white : Colors.white70,
-                                  fontWeight: isActive ? FontWeight.w800 : FontWeight.w600,
-                                  fontSize: indent > 0 ? 13 : 14,
-                                ),
-                              ),
-                              selected: isActive,
-                              selectedTileColor: Colors.transparent,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                              onTap: () => context.go(item.route),
-                            ),
-                          ),
-                        );
-                      }
-
-                      final tiles = <Widget>[];
-                      for (final item in navigationItems) {
-                        tiles.add(buildNavTile(item));
-                        if (item.children.isNotEmpty) {
-                          for (final childItem in item.children) {
-                            tiles.add(buildNavTile(childItem, indent: 18));
-                          }
-                        }
-                      }
-
-                      return ListView(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        children: tiles,
-                      );
-                    },
-                  ),
-                ),
-                
-                // User Profile
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.08)))),
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        backgroundColor: roleColor.withValues(alpha: 0.2),
-                        child: Text(currentUser.fullName[0].toUpperCase(), style: TextStyle(color: roleColor, fontWeight: FontWeight.bold)),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(currentUser.fullName, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w700), overflow: TextOverflow.ellipsis),
-                            Text(currentUser.email, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white70), overflow: TextOverflow.ellipsis),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: 'Change password',
-                        icon: const Icon(LucideIcons.keyRound),
-                        color: Colors.white70,
-                        onPressed: () => _showChangePasswordDialog(context, ref, currentUser.id),
-                      ),
-                      IconButton(
-                        icon: const Icon(LucideIcons.logOut),
-                        color: Colors.white70,
-                        onPressed: () async {
-                          final token = ref.read(sessionTokenProvider);
-                          if (token != null) {
-                            await ref.read(authServiceProvider).logout(token);
-                            final prefs = await SharedPreferences.getInstance();
-                            await prefs.remove('session_token');
-                            ref.read(sessionTokenProvider.notifier).setToken(null);
-                            ref.read(currentUserProvider.notifier).setUser(null);
-                          }
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Developer Branding
-                Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.16),
-                    border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.04))),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        width: 18,
-                        height: 18,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white.withValues(alpha: 0.12),
-                        ),
-                        alignment: Alignment.center,
-                        child: const Icon(
-                          Icons.school_rounded,
-                          size: 12,
-                          color: Colors.white70,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Powered by OmniWeave',
-                        style: TextStyle(
-                          color: Colors.white60,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w500,
-                          letterSpacing: 0.3,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          
-                // Main Content
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.68),
-                        borderRadius: BorderRadius.circular(34),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.75)),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppTheme.primarySlate.withValues(alpha: 0.08),
-                            blurRadius: 28,
-                            offset: const Offset(0, 20),
-                          ),
-                        ],
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(34),
-                        child: BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                          child: Column(
-                            children: [
-                // Top header bar
-                Container(
-                  height: 84,
-                  padding: const EdgeInsets.symmetric(horizontal: 28),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.72),
-                    border: const Border(
-                      bottom: BorderSide(color: Color(0xFFE2E8F0)),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              gradient: LinearGradient(
-                                colors: [
-                                  roleColor.withValues(alpha: 0.18),
-                                  AppTheme.surfaceMuted,
+                                    ),
+                                    clipBehavior: Clip.antiAlias,
+                                    child: identityAsync.maybeWhen(
+                                      data: (identity) {
+                                        final bytes = identity?.logoBytes;
+                                        if (bytes != null && bytes.isNotEmpty) {
+                                          return Image.memory(bytes, fit: BoxFit.cover);
+                                        }
+                                        final path = identity?.logoPath;
+                                        if (path != null && path.trim().isNotEmpty) {
+                                          return Image.file(File(path), fit: BoxFit.cover);
+                                        }
+                                        return const Icon(
+                                          LucideIcons.school,
+                                          size: 18,
+                                          color: AppTheme.textMuted,
+                                        );
+                                      },
+                                      orElse: () => const Icon(
+                                        LucideIcons.school,
+                                        size: 18,
+                                        color: AppTheme.textMuted,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        schoolName,
+                                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                              fontWeight: FontWeight.w900,
+                                              letterSpacing: -0.5,
+                                            ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        portalLabel,
+                                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                              color: AppTheme.textMuted,
+                                              fontWeight: FontWeight.w700,
+                                              letterSpacing: 0.3,
+                                            ),
+                                      ),
+                                    ],
+                                  ),
                                 ],
                               ),
-                            ),
-                            clipBehavior: Clip.antiAlias,
-                            child: identityAsync.maybeWhen(
-                              data: (identity) {
-                                final bytes = identity?.logoBytes;
-                                if (bytes != null && bytes.isNotEmpty) {
-                                  return Image.memory(bytes, fit: BoxFit.cover);
-                                }
-                                final path = identity?.logoPath;
-                                if (path != null && path.trim().isNotEmpty) {
-                                  return Image.file(File(path), fit: BoxFit.cover);
-                                }
-                                return const Icon(LucideIcons.school, size: 18, color: AppTheme.textMuted);
-                              },
-                              orElse: () => const Icon(LucideIcons.school, size: 18, color: AppTheme.textMuted),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                schoolName,
-                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                      fontWeight: FontWeight.w900,
-                                      letterSpacing: -0.5,
-                                    ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                portalLabel,
-                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: AppTheme.textMuted,
-                                      fontWeight: FontWeight.w700,
-                                      letterSpacing: 0.3,
-                                    ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      Row(
-                        children: [
-                          const SyncStatusIndicator(),
-                          const SizedBox(width: 18),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                currentUser.fullName,
-                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                              ),
-                              const SizedBox(height: 2),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: roleColor.withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(999),
-                                ),
-                                child: Text(
-                                  '${userRole.displayName} Workspace',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w700,
-                                    color: roleColor,
+                              Row(
+                                children: [
+                                  const SyncStatusIndicator(),
+                                  const SizedBox(width: 18),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        currentUser.fullName,
+                                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: roleColor.withValues(alpha: 0.12),
+                                          borderRadius: BorderRadius.circular(999),
+                                        ),
+                                        child: Text(
+                                          '${userRole.displayName} Workspace',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w700,
+                                            color: roleColor,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ),
+                                ],
                               ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                // Workspace
-                Expanded(
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 250),
-                    child: Container(
-                      key: ValueKey(child.runtimeType),
-                      decoration: BoxDecoration(
-                        gradient: AppTheme.appBackgroundGradient,
-                      ),
-                      child: child,
-                    ),
-                  ),
-                ),
                             ],
                           ),
                         ),
                       ),
-                    ),
+                    ],
                   ),
-                ),
-              ],
-            ),
           ),
         ],
       ),
